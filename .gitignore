@@ -1,0 +1,55 @@
+# --- Data: never commit raw or derived data, or anything with respondent data ---
+# Raw Open Psychometrics download (data.csv + codebook); read-only source, re-downloadable
+Dataset/RIASEC_data12Dec2018/
+# Derived/processed data files (riasec_clean.csv etc.); regenerate from the notebooks
+Dataset/processed/
+# Survey responses and exports must never reach git (even if exported into the repo by accident)
+Survey/**/responses*
+Survey/**/*response*.csv
+Survey/data/
+# Screenshots written by Survey/tests/browser.test.mjs --screenshots
+Survey/tests/screenshots/
+# Binary/serialised data formats that only ever hold data or model dumps
+*.parquet
+*.pkl
+*.pickle
+*.feather
+*.h5
+*.npy
+*.npz
+
+# --- Python clutter ---
+# Virtual environments
+.venv/
+venv/
+env/
+# Bytecode caches
+__pycache__/
+*.py[cod]
+# Jupyter autosave copies
+.ipynb_checkpoints/
+
+# --- Node clutter (in case we use it later) ---
+node_modules/
+
+# --- OS / editor junk ---
+# Windows thumbnail cache
+Thumbs.db
+# Windows folder settings
+desktop.ini
+# macOS folder metadata
+.DS_Store
+# VS Code per-user settings (none are shared yet; remove this line if we add shared ones)
+.vscode/
+# LibreOffice lock files, e.g. ".~lock.data.csv#"
+.~lock.*
+
+# --- Secrets ---
+# Environment files with keys/tokens
+.env
+.env.*
+# Other credential files (e.g. Google Apps Script / service-account keys)
+*.pem
+*.key
+credentials*.json
+service-account*.json

@@ -1,0 +1,301 @@
+major_norm,cluster_id,method,confident,note
+psychology,1,manual,y,
+business,7,manual,y,
+english,5,manual,y,
+education,14,manual,y,
+biology,11,manual,y,
+economics,8,manual,y,
+accounting,8,manual,y,
+computer science,9,manual,y,
+engineering,10,manual,y,
+nursing,12,manual,y,
+law,6,manual,y,
+sociology,2,manual,y,
+history,5,manual,y,
+marketing,7,manual,y,
+management,7,manual,y,
+finance,8,manual,y,
+business administration,7,manual,y,
+mechanical engineering,10,manual,y,
+counseling,1,manual,y,
+civil engineering,10,manual,y,
+social work,2,manual,y,
+political science,2,manual,y,
+criminal justice,2,manual,y,
+communications,3,manual,y,
+business management,7,manual,y,
+medicine,12,manual,y,
+chemistry,11,manual,y,
+electrical engineering,10,manual,y,
+communication,3,manual,y,
+physics,11,manual,y,
+mathematics,8,manual,y,
+philosophy,5,manual,y,
+architecture,10,manual,y,
+journalism,3,manual,y,
+chemical engineering,10,manual,y,
+science,11,manual,n,"Vague, but you listed ""science"" under cluster 11"
+music,4,manual,y,
+art,4,manual,y,
+commerce,7,manual,y,
+anthropology,2,manual,y,
+design,4,manual,n,"Listed under cluster 4, but could also be web or industrial design"
+geography,13,manual,y,
+information technology,9,manual,y,
+human resources,7,manual,y,
+linguistics,5,manual,y,
+human services,2,manual,y,
+international relations,2,manual,y,
+computer engineering,10,manual,y,You specified: computer engineering goes to 10
+graphic design,4,manual,y,
+it,9,manual,y,You specified: it goes to 9
+biochemistry,11,manual,y,
+politics,2,manual,y,
+liberal arts,,manual,y,UNMAPPED_VAGUE
+pharmacy,12,manual,y,
+social science,2,manual,y,You specified: social science(s) goes to 2
+math,8,manual,y,
+general studies,,manual,y,UNMAPPED_VAGUE
+teaching,14,manual,y,
+public health,12,manual,y,
+literature,5,manual,y,
+geology,11,manual,y,
+environmental science,13,manual,y,
+arts,,manual,y,UNMAPPED_VAGUE
+industrial engineering,10,manual,y,
+french,5,manual,y,
+art history,4,manual,y,You specified: art history goes to 4
+mba,7,manual,y,
+criminology,2,manual,y,
+neuroscience,11,manual,y,
+kinesiology,12,manual,y,
+software engineering,9,manual,y,Listed under cluster 9
+theology,5,manual,y,
+elementary education,14,manual,y,
+spanish,5,manual,y,
+tourism,7,manual,y,
+fine arts,4,manual,y,
+english literature,5,manual,y,
+microbiology,11,manual,y,
+counselling,1,manual,y,
+health science,12,manual,y,
+economy,8,manual,y,
+health,12,manual,n,"Broad; you listed ""health (sciences)"" under 12"
+human resource management,7,manual,y,
+electronic engineering,10,manual,y,
+hospitality,7,manual,y,
+human resource,7,manual,y,
+nutrition,12,manual,y,
+film,3,manual,y,
+fine art,4,manual,y,
+international business,7,manual,y,
+liberal studies,,manual,y,UNMAPPED_VAGUE
+theatre,4,manual,y,
+languages,5,manual,y,
+advertising,3,manual,y,
+media,3,manual,y,
+biotechnology,11,manual,y,
+statistics,8,manual,y,
+early childhood education,14,manual,y,
+humanities,5,manual,y,
+archaeology,5,manual,y,
+administration,7,manual,n,"You listed ""administration"" under 7, but it could be public administration"
+accountancy,8,manual,y,
+exercise science,12,manual,y,
+biomedical engineering,10,manual,y,You specified: biomedical engineering goes to 10
+international studies,2,manual,y,
+electronics engineering,10,manual,y,
+biomedical science,11,manual,y,
+human development,2,manual,n,Child/family development; could be 1 (psychology). Grouped with family studies
+music education,14,manual,y,Kenyan subject-teaching degrees are B.Ed programmes (KUCCPS cluster 19)
+photography,4,manual,y,
+business admin,7,manual,y,
+hr,7,manual,y,
+hospitality management,7,manual,y,
+public administration,2,manual,y,
+maths,8,manual,y,
+social sciences,2,manual,y,
+special education,14,manual,y,
+medical,12,manual,y,
+occupational therapy,12,manual,y,
+zoology,11,manual,y,
+mental health counseling,1,manual,y,
+public relations,3,manual,y,
+translation,5,manual,y,
+school counseling,1,manual,y,
+dentistry,12,manual,y,
+physical education,14,manual,y,
+german,5,manual,y,
+computing,9,manual,y,
+communication studies,3,manual,y,
+interior design,4,manual,y,
+agriculture,13,manual,y,
+computer,9,manual,y,
+health sciences,12,manual,y,
+clinical mental health counseling,1,manual,y,
+environmental studies,13,manual,y,
+religion,5,manual,y,
+clinical psychology,1,manual,y,
+environmental engineering,10,manual,y,
+child development,1,manual,n,Could be 14 (education) or 2 (social sciences)
+japanese,5,manual,y,
+classics,5,manual,y,
+physiology,11,manual,y,
+applied science,11,manual,y,
+animal science,13,manual,y,
+mass communication,3,manual,y,
+physical therapy,12,manual,y,
+economic,8,manual,y,
+information systems,9,manual,y,
+interdisciplinary studies,,manual,y,UNMAPPED_VAGUE
+dance,4,manual,y,
+religious studies,5,manual,y,
+food science,13,manual,n,Food science and technology could also be 11 (sciences)
+mass communications,3,manual,y,
+human resources management,7,manual,y,
+electronics,10,manual,n,Field name only; could be technician-level
+veterinary medicine,12,manual,y,You specified: veterinary anything goes to 12
+counseling psychology,1,manual,y,
+speech pathology,12,manual,n,Speech-language pathology is a health profession
+american studies,5,manual,n,Area studies; humanities
+quantity surveying,10,manual,y,
+electronics and communication engineering,10,manual,y,Single degree; both parts are engineering
+fashion merchandising,7,manual,n,Retail/business side of fashion
+drama,4,manual,y,
+pyschology,1,manual,y,Typo of psychology
+library science,,manual,y,UNMAPPED_AMBIGUOUS
+english education,14,manual,y,Kenyan subject-teaching degrees are B.Ed programmes (KUCCPS cluster 19)
+computers,9,manual,y,
+hotel management,7,manual,y,
+psycology,1,manual,y,Typo of psychology
+actuarial science,8,manual,y,
+medical assistant,12,manual,y,
+general,,manual,y,UNMAPPED_VAGUE
+psych,1,manual,y,
+industrial design,4,manual,n,Product design; could be 10
+aeronautical engineering,10,manual,y,
+fashion,4,manual,n,Assumed fashion design
+urban planning,10,manual,n,Built environment; could be 13 or 2
+leadership,7,manual,n,Assumed management/leadership
+media studies,3,manual,y,
+aerospace engineering,10,manual,y,
+cybersecurity,9,manual,y,
+accounting and finance,8,manual,y,Both parts are cluster 8
+chinese,5,manual,y,
+creative writing,5,manual,n,Could be 4
+fashion design,4,manual,y,
+animation,4,manual,n,Could be 3 (media) or 9
+studio art,4,manual,y,
+physiotherapy,12,manual,y,
+biomedical sciences,11,manual,y,
+business studies,7,manual,y,
+psychology and sociology,,manual,y,UNMAPPED_MULTI: Two fields in different clusters (1 and 2)
+organizational leadership,7,manual,n,Assumed management/leadership
+dietetics,12,manual,y,
+horticulture,13,manual,y,
+hrm,7,manual,y,
+writing,5,manual,n,Could be 3 (journalism) or 4
+communication disorders,12,manual,n,Speech/hearing sciences are health professions
+teacher,14,manual,y,
+construction management,10,manual,n,Construction is cluster 10; could be 7
+human resource development,7,manual,y,
+paralegal,6,manual,y,
+industrial psychology,1,manual,y,Industrial/organisational psychology
+management information systems,9,manual,y,MIS is listed under 9
+business marketing,7,manual,y,
+rehabilitation services,12,manual,n,Could be 2 (social services)
+general education,,manual,n,"UNMAPPED_VAGUE: Probably general-education requirements, but could be education (14)"
+computer science engineering,9,manual,n,The CSE degree; treated as computing rather than engineering
+human development and family studies,2,manual,n,One degree name; could be 1
+legal studies,6,manual,y,
+digital media,3,manual,y,
+theater,4,manual,y,
+bba,7,manual,y,
+international affairs,2,manual,y,
+culinary,7,manual,n,Hospitality side; could be 4
+pharmacology,12,manual,y,
+marketing management,7,manual,y,
+food technology,13,manual,n,Same as food science
+supply chain management,7,manual,y,
+behavioral science,1,manual,n,Could be 2
+information management,9,manual,n,Could be 7 or library science
+visual arts,4,manual,y,
+family studies,2,manual,n,Social science; could be 1
+public policy,2,manual,y,
+information system,9,manual,y,
+sciences,11,manual,n,"Vague, same as ""science"""
+foreign languages,5,manual,y,
+culinary arts,7,manual,n,Hospitality side; could be 4
+forestry,13,manual,y,
+communication arts,3,manual,n,Could be 4
+cognitive science,1,manual,n,Could be 11 (neuroscience) or 9
+art education,14,manual,y,Kenyan subject-teaching degrees are B.Ed programmes (KUCCPS cluster 19)
+forensic psychology,1,manual,y,
+cpa,8,manual,y,
+logistics,7,manual,y,
+educational psychology,14,manual,y,You specified: educational psychology goes to 14
+cyber security,9,manual,y,
+language,5,manual,n,Assumed language studies
+landscape architecture,10,manual,n,Could be 13
+russian,5,manual,y,
+mechanical,10,manual,y,
+accounting finance,8,manual,y,
+psycholgy,1,manual,y,Typo of psychology
+modern languages,5,manual,y,
+accountant,8,manual,y,
+medical assisting,12,manual,y,
+psychology counseling,1,manual,y,Both parts are cluster 1
+botany,11,manual,n,Plant biology; could be 13
+electrical,10,manual,y,
+product design,4,manual,y,
+business education,14,manual,y,Kenyan subject-teaching degrees are B.Ed programmes (KUCCPS cluster 19)
+illustration,4,manual,y,
+mental health,1,manual,n,Could be 12
+multimedia,3,manual,n,Could be 4 or 9
+rehabilitation counseling,1,manual,y,
+values education,14,manual,n,Teacher-education degree
+environment,13,manual,y,
+athletic training,12,manual,y,
+social services,2,manual,y,
+business and management,7,manual,y,Both parts are cluster 7
+ecology,13,manual,n,Could be 11
+accounts,8,manual,n,Assumed accounting
+sport science,12,manual,y,
+tourism management,7,manual,y,
+entrepreneurship,7,manual,y,
+pre med,12,manual,y,
+clinical mental health,1,manual,n,Counselling programme name; could be 12
+aviation,10,manual,n,Aeronautics; could be a pilot/vocational programme
+psychology sociology,,manual,y,UNMAPPED_MULTI: Two fields in different clusters (1 and 2)
+engineer,10,manual,y,
+sports management,7,manual,y,
+environmental sciences,13,manual,y,
+environmental management,13,manual,n,Could be 7
+sport management,7,manual,y,
+molecular biology,11,manual,y,
+pschology,1,manual,y,Typo of psychology
+art therapy,1,manual,n,Could be 4 (arts) or 12
+petroleum engineering,10,manual,y,
+banking and finance,8,manual,y,Both parts are cluster 8
+construction,10,manual,y,
+computer information systems,9,manual,y,
+healthcare administration,7,manual,n,Could be 12
+architect,10,manual,y,
+radiology,12,manual,y,
+biological sciences,11,manual,y,
+bioengineering,10,manual,n,Engineering of biology; could be 11
+materials engineering,10,manual,y,
+agronomy,13,manual,y,
+property management,7,manual,y,
+health studies,12,manual,y,
+technology,,manual,n,"UNMAPPED_AMBIGUOUS: Too broad (could be 9, 10 or 11)"
+educational studies,14,manual,y,
+rehabilitation,12,manual,n,Could be 1 or 2
+philology,5,manual,y,
+recreation,,manual,n,"UNMAPPED_AMBIGUOUS: Could be 12, 7 or 14"
+mis,9,manual,y,MIS is listed under 9
+econ,8,manual,y,
+telecommunications,,manual,n,UNMAPPED_AMBIGUOUS: Telecom engineering (10) or communications (3)
+healthcare,12,manual,y,
+business adminstration,7,manual,y,Typo of business administration
+psychology and criminology,,manual,y,UNMAPPED_MULTI: Two fields in different clusters (1 and 2)
