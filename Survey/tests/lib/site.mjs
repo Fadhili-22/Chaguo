@@ -47,7 +47,7 @@ export function makeSiteCopy() {
   };
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 
 // Serve `dir` under `prefix` (e.g. '/Chaguo/'). Text files are gzipped, like GitHub Pages. Everything
 // else is a 404. Records every request in `log` as { url, status }.

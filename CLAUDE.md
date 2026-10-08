@@ -29,7 +29,7 @@ Chaguo/
 │   ├── notes/       ← see here for what analysis has been done so far
 │   └── processed/
 ├── .github/workflows/deploy-survey.yml  ← publishes Survey/ to GitHub Pages (only the files the live survey needs)
-├── Survey/          ← anonymous Kenyan university-student survey (static site → GitHub Pages); phases 1–4 built
+├── Survey/          ← anonymous Kenyan university-student survey (static site → GitHub Pages); phases 1–5 built
 └── Web-App/         ← the Chaguo product itself (not started; empty)
 ```
 
@@ -90,7 +90,7 @@ Publishing (phase 4, built; awaiting go-live):
 - The published site loads ONE script: `scripts/build-site.mjs` concatenates the scripts listed in `index.html` (in order, unchanged) into `js/survey.js` at build time only; the repo's source files and `index.html` stay split. The live, deploy and slow-network tests run against this bundled build (opening screen ≈1.7 s on slow 3G instead of ≈4.0 s). `config.js` is inside the bundle.
 - `Survey/js/config.js` holds every switch: `SURVEY_ENDPOINT`, `SEND_MODE`, `SURVEY_URL`, `SURVEY_OPEN` (anything but `true` = closed screen, nothing ever sent), `CONSENT_VERSION`.
 - `?test=1` marks a run `is_test = "yes"` on the live site without the debug button; `?debug=1|fail` still shows the debug button.
-- `index.html` has a strict Content-Security-Policy meta tag (own files only; connect only to script.google.com / script.googleusercontent.com), Open Graph + Twitter tags (absolute URLs, `assets/og-image.png` 1200×630), favicon/apple-touch-icon, `robots noindex`. Phase 5 must widen the CSP if it adds web fonts (or self-host them).
+- `index.html` has a strict Content-Security-Policy meta tag (own files only; connect only to script.google.com / script.googleusercontent.com), Open Graph + Twitter tags (absolute URLs, `assets/og-image.png` 1200×630), favicon/apple-touch-icon, `robots noindex`. Fonts are self-hosted (`assets/fonts/`), so the CSP only gained `font-src 'self'`.
 - Go-live steps and the pre-launch checklist: `Survey/LAUNCH.md`. Run every test with `node tests/run-all.mjs` (from `Survey/`); tests never touch the real Sheet. Local runs of `index.html` DO use the real endpoint in config.js (rows marked `is_test`).
 - Never put photos or personal files in `Survey/assets/` (public repo; `.gitignore` blocks `.jpg/.jpeg` there).
 
@@ -109,7 +109,7 @@ Build phases (one Claude Code prompt each):
 - Type: IBM Plex Sans (headlines, body), IBM Plex Mono (eyebrows/labels), Bricolage Grotesque (wordmark only).
 - Layout feel: technical-editorial — big bold headlines, mono eyebrows, numbered sections, bordered cards, stat strips, callouts, score bars.
 
-Branding is applied in survey phase 5; earlier phases keep styling minimal but use CSS variables so the brand can be dropped in later.
+Branding is applied in survey phase 5 (built): all styling lives in `Survey/css/styles.css` as tokens on `:root`. IBM Plex Sans 400/700 and IBM Plex Mono 400/600 are self-hosted as Latin-subset woff2 in `Survey/assets/fonts/` (with `OFL.txt`); Bricolage Grotesque is not used in the survey (wordmark only, in the logo image). The opening-screen "Before you start" list is numbered I) to V) by a CSS `@counter-style`, and the progress label stays the text "Screen N of 8" (styled as a mono eyebrow).
 
 ## Progress
 
@@ -120,7 +120,7 @@ Branding is applied in survey phase 5; earlier phases keep styling minimal but u
 - [x] Survey phase 2 — background questions + branching (built, both test suites pass; question wording is a DRAFT awaiting review; not yet committed, awaiting manual test)
 - [x] Survey phase 3 — Sheet + Apps Script saving (built, committed, and tested against the real Google Sheet: works with `SEND_MODE` "cors" (only the endpoint URL in `Survey/js/config.js` was changed); all six test suites pass; formula neutralising and "saved as you go" consent wording done; consent wording is still a DRAFT awaiting review)
 - [x] Survey phase 4 — quality checks + deploy (built and tested locally, committed; owner pushes. Not live until Pages is enabled and the workflow has run: follow `Survey/LAUNCH.md`. Consent wording is now `CONSENT_VERSION` "2026-10-v2" — still a DRAFT awaiting final owner approval.)
-- [ ] Survey phase 5 — branding
+- [x] Survey phase 5 — branding (built and committed locally, not pushed: owner reviews screenshots first. CSS, fonts and wrapper markup only; no copy, flow, schema or `CONSENT_VERSION` change; all nine suites pass; axe 0 violations on every screen at 360 and 1366; slow 3G opening screen 1.9 s)
 - [ ] Confirm the 14-cluster list
 - [ ] Write pre-registered decision rules for the Kenyan data into the project doc
 - [ ] Logo: SVG, small-size torch, dark-background version

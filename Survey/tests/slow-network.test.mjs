@@ -16,7 +16,7 @@ import { launchBrowser, sleep } from './lib/cdp.mjs';
 import { serveUnderPrefix, makeSiteCopy } from './lib/site.mjs';
 import { buildSite } from '../scripts/build-site.mjs';
 
-const LIMIT_MS = 3000; // main profile must make the opening screen usable within this
+const LIMIT_MS = 2500; // main profile must make the opening screen usable within this
 
 // latency = extra delay per request (ms); kbps = bandwidth each way
 const PROFILES = [
@@ -76,7 +76,8 @@ for (const p of PROFILES) {
   if (p.gate) check(`opening screen usable within ${LIMIT_MS / 1000} s on ${p.name.trim()}`, usable <= LIMIT_MS, `${(usable / 1000).toFixed(1)} s`);
 }
 console.log('');
-check('the survey needed no more than 5 requests for the opening screen (page, css, one script, logo, icon)', server.log.length <= 5, `${server.log.length}`);
+const fontReqs = server.log.filter((r) => /\.woff2$/.test(r.url)).length;
+check('the survey needed no more than 5 requests for the opening screen (page, css, one script, logo, icon), plus the 4 font files', server.log.length - fontReqs <= 5 && fontReqs <= 4, `${server.log.length - fontReqs} + ${fontReqs} fonts`);
 
 const failed = results.filter((r) => !r).length;
 console.log(`\n${results.length - failed}/${results.length} checks passed`);

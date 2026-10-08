@@ -75,10 +75,19 @@ const results = [];
 const check = (name, cond, extra = '') => { results.push(cond); console.log((cond ? '  ok    ' : '  FAIL  ') + name + (extra ? '  ' + extra : '')); };
 const visible = () => ev(`[...document.querySelectorAll('[data-screen]')].filter(e=>!e.hidden).map(e=>e.dataset.screen).join(',')`);
 const click = (sel) => ev(`document.querySelector(${JSON.stringify(sel)}).click()`);
+// With --screenshots: saves the whole page at phone width (360) and laptop width (1366), then goes back to phone width.
 const shot = async (name) => {
   if (!SHOTS) return;
-  const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
-  fs.writeFileSync(path.join(SHOTS, name + '.png'), Buffer.from(r.result.data, 'base64'));
+  const save = async (suffix) => {
+    const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
+    fs.writeFileSync(path.join(SHOTS, `${name}-${suffix}.png`), Buffer.from(r.result.data, 'base64'));
+  };
+  await save('360');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+  await sleep(150);
+  await save('1366');
+  await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 800, deviceScaleFactor: 2, mobile: true });
+  await sleep(150);
 };
 const answerAll = (v) => ev(`document.querySelectorAll('#items-list .item').forEach(fs=>{const i=fs.querySelector('input[value="${v}"]'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true}));})`);
 const itemIds = () => ev(`[...document.querySelectorAll('#items-list .item')].map(f=>f.dataset.id).join(' ')`);
@@ -157,7 +166,7 @@ const EXPECTED_LIST = [
 ];
 const listText = await ev(`[...document.querySelectorAll('#screen-start .before-list li')].map(li=>li.textContent)`);
 check('"Before you start" list reads exactly as agreed (five points; saved as you go + deletion by reference code)', JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST), JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST) ? '' : JSON.stringify(listText));
-check('list uses bullets with a small gap (<= 1.5em indent)', await ev(`(()=>{const l=document.querySelector('#screen-start .before-list'); const cs=getComputedStyle(l); return l.tagName==='UL' && cs.listStyleType==='disc' && parseFloat(cs.paddingLeft) <= 1.5*parseFloat(cs.fontSize);})()`));
+check('list is numbered I) II) III) IV) V) in mono (a real <ul>; numerals come from CSS, the text is unchanged)', await ev(`(()=>{const l=document.querySelector('#screen-start .before-list'); const cs=getComputedStyle(l); const m=getComputedStyle(l.querySelector('li'),'::marker'); return l.tagName==='UL' && cs.listStyleType==='roman-paren' && /mono/i.test(m.fontFamily);})()`));
 check('"Before you start" is bold; list items are normal weight; main heading and buttons may be bold', await ev(`(()=>{const root=document.getElementById('screen-start'); if(root.querySelector('strong,b,dt')) return false; const w=(el)=>parseInt(getComputedStyle(el).fontWeight,10); if(w(root.querySelector('.before-title'))<600) return false; return [...root.querySelectorAll('*')].every(el=>{ if(el.tagName==='H1'||el.classList.contains('btn')||el.classList.contains('before-title')) return true; return w(el)<=400; });})()`));
 check('time wording: "about 7 to 10 minutes" appears once on the page; no stale "7 minutes"', await ev(`(()=>{const t=document.body.textContent; return t.split('7 to 10 minutes').length===2 && t.split('7 minutes').length===1;})()`));
 check('contact email is a mailto link', await ev(`document.querySelector('#screen-start .before-list a[href="mailto:njenga.munyua@strathmore.edu"]') !== null`));
@@ -176,7 +185,6 @@ await sleep(200);
 const laptop = await ev(`({ page: document.documentElement.scrollHeight, view: window.innerHeight })`);
 console.log(`        opening screen at 1366x768: page height ${laptop.page}px, viewport ${laptop.view}px`);
 check('opening screen fits a laptop screen with no scrolling', laptop.page <= laptop.view);
-await shot('start-laptop');
 await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 800, deviceScaleFactor: 2, mobile: true });
 await sleep(200);
 await click('#start-agree');

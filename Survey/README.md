@@ -57,7 +57,7 @@ Branching per admission route, clearing of hidden answers, validation per screen
 
 ```powershell
 node tests/browser.test.mjs
-node tests/browser.test.mjs --screenshots   # also saves PNGs to tests/screenshots/
+node tests/browser.test.mjs --screenshots   # also saves PNGs to tests/screenshots/ (every screen, at 360px and 1366px: name-360.png, name-1366.png)
 ```
 
 What it needs:
@@ -113,7 +113,7 @@ Serves the built (bundled) site under `/Chaguo/` on a made-up public hostname wi
 node tests/slow-network.test.mjs
 ```
 
-Throttles the browser and loads the built (bundled) site (fast 3G, slow 3G, very slow) and prints how long the opening screen takes to become usable on a first visit. Fails only if slow 3G (400 kbps, 400 ms) takes more than 3 seconds.
+Throttles the browser and loads the built (bundled) site (fast 3G, slow 3G, very slow) and prints how long the opening screen takes to become usable on a first visit. Fails only if slow 3G (400 kbps, 400 ms) takes more than 2.5 seconds. The four font files load after the page is usable (`font-display: swap`), so they do not count towards that time.
 
 ## Publishing (phase 4)
 
@@ -121,7 +121,7 @@ Throttles the browser and loads the built (bundled) site (fast 3G, slow 3G, very
 - `scripts/build-site.mjs` copies the published files into `_site/` (git-ignored), bundles the scripts, and checks them; the GitHub Actions workflow `.github/workflows/deploy-survey.yml` runs the Node-only tests, builds, and publishes only that folder. Try the build yourself: `node scripts/build-site.mjs` (or give it another folder name, e.g. `_site`).
 - Settings that change what goes live are in `js/config.js`: `SURVEY_URL`, `SURVEY_OPEN` (false = closed), `SURVEY_ENDPOINT`, `SEND_MODE`, `CONSENT_VERSION`.
 - `?test=1` marks your own runs as tests (`is_test` = `yes`) without the debug button. `?debug=1` does that and shows the debug button.
-- `index.html` has a Content-Security-Policy `<meta>` tag: the page may load only its own files and talk only to `script.google.com` / `script.googleusercontent.com`. If you add web fonts or other outside resources (phase 5), the policy must be widened; `tests/deploy.test.js` will tell you.
+- `index.html` has a Content-Security-Policy `<meta>` tag: the page may load only its own files and talk only to `script.google.com` / `script.googleusercontent.com`. The fonts are self-hosted, so the policy only adds `font-src 'self'`. If you add any outside resource, the policy must be widened; `tests/deploy.test.js` will tell you.
 - Share-preview and icon files in `assets/`: `og-image.png` (1200x630), `favicon-32.png`, `apple-touch-icon.png`. `assets/` must contain only images the site uses (the build refuses unknown file types, and `.gitignore` blocks `.jpg`/`.jpeg` there).
 
 ## Files
@@ -150,6 +150,7 @@ Throttles the browser and loads the built (bundled) site (fast 3G, slow 3G, very
 | `scripts/build-site.mjs` | Builds the folder that gets published (only the files the survey needs) |
 | `LAUNCH.md` | Steps to go live on GitHub Pages and a pre-launch checklist |
 | `assets/` | Logo files (kept byte-identical with `Web-App/assets/`) |
+| `assets/fonts/` | IBM Plex Sans (400, 700) and IBM Plex Mono (400, 600) as Latin-subset woff2 (about 38 KB in all), plus the SIL Open Font Licence text. Self-hosted: no Google Fonts requests |
 
 ## Scoring rules
 

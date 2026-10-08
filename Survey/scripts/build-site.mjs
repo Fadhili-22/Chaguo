@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 export const SURVEY_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const RUNTIME = ['index.html', 'css', 'js', 'assets']; // the whole allow-list
-const ALLOWED_EXT = new Set(['.html', '.css', '.js', '.png', '.svg', '.ico', '.jpg', '.webp', '.woff2']);
+const ALLOWED_EXT = new Set(['.html', '.css', '.js', '.png', '.svg', '.ico', '.jpg', '.webp', '.woff2', '.txt']); // .txt = the font licence (assets/fonts/OFL.txt)
 const JUNK = new Set(['thumbs.db', 'desktop.ini', '.ds_store']);
 
 function walk(dir, base = dir) {

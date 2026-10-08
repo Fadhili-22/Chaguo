@@ -6,9 +6,9 @@
     Content-Security-Policy: the page may load only its own files, and may talk only to Google Apps Script
     (script.google.com, which redirects to script.googleusercontent.com). Nothing inline, nothing from other sites.
     If you change where answers are sent (SURVEY_ENDPOINT), change connect-src to match; tests/deploy.test.js checks it.
-    If branding adds web fonts (phase 5), add their address to font-src and style-src.
+    Fonts: IBM Plex is self-hosted (assets/fonts/), so font-src allows the site's own files only.
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Chaguo interest survey</title>
   <meta name="description" content="An anonymous survey about how interests relate to the courses Kenyan university students study.">
@@ -55,6 +55,7 @@
     <section id="screen-start" data-screen="start" hidden>
       <h1 tabindex="-1">Help us build Chaguo</h1>
       <p>Chaguo is a tool we're building to help KCSE leavers in Kenya choose courses that fit their interests. We're asking current university students, so its recommendations are based on real Kenyan students. At the end, you'll get your interest profile and your 3-letter interest code.</p>
+      <div class="card">
       <h2 class="before-title">Before you start</h2>
       <ul class="before-list">
         <li>Anonymous (no name, email or phone number needed)</li>
@@ -63,6 +64,7 @@
         <li>Answers (your interests, course details and satisfaction) are saved as you go, so if you stop partway, what you've answered is kept. They are used for research and to train Chaguo's model</li>
         <li>Contact (<a href="mailto:njenga.munyua@strathmore.edu">njenga.munyua@strathmore.edu</a>): email us with the reference code shown at the end of the survey to have your answers deleted</li>
       </ul>
+      </div>
       <div class="actions actions-stack">
         <button type="button" class="btn" id="start-agree">I'm 18 or older, and I agree &mdash; start</button>
         <button type="button" class="btn btn-secondary" id="start-underage">I'm under 18</button>
@@ -125,8 +127,10 @@
     <section id="screen-results" data-screen="results" hidden>
       <p class="eyebrow">Your results</p>
       <h1 tabindex="-1">Your interest code</h1>
-      <p class="code" id="results-code"></p>
-      <p class="code-names" id="results-code-names"></p>
+      <div class="stat-strip">
+        <p class="code" id="results-code"></p>
+        <p class="code-names" id="results-code-names"></p>
+      </div>
       <p class="callout" id="results-tie-note" hidden></p>
       <p class="callout">This is a summary of your interests, not a course recommendation.</p>
       <h2>Your scores</h2>

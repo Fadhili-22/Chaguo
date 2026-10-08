@@ -107,4 +107,4 @@ Tick these off before you share the link.
 - **`?test=1`**: add it to the address to mark your own runs as tests (`is_test` = `yes`) without showing the debug button. `?debug=1` does the same and also shows the "fill answers" button. Neither has any effect on other people's visits.
 - **Closing the survey** (`SURVEY_OPEN = false`) also stops anything left waiting in someone's browser from being sent.
 - **Changing where answers go:** if you ever deploy the Apps Script as a *new* deployment, the address changes. Put the new one in `config.js`. The page's security policy (in `index.html`) already allows `script.google.com`, so nothing else needs changing. Keep the `SURVEY_ENDPOINT` an address that starts with `https://script.google.com/`.
-- **Fonts (phase 5):** the security policy allows only the site's own files. When branding adds web fonts, the policy in `index.html` needs the font address added (`font-src` and `style-src`), or self-host the fonts in `assets/`.
+- **Fonts (phase 5):** IBM Plex is self-hosted in `assets/fonts/` (four woff2 files plus the licence), so the security policy only needed `font-src 'self'`. No outside font service is used.

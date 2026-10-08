@@ -1,26 +1,42 @@
 /*
- * Minimal, neutral styling for phase 1. Every colour, font and size is a variable
- * on :root so phase 5 (branding) can restyle by changing this block.
+ * Chaguo survey styling (phase 5: branding).
+ * Technical-editorial: big bold headlines, small uppercase mono eyebrows, bordered cards, thin rules,
+ * square corners. Every colour, font, size and gap is a variable on :root; nothing below that block
+ * hard-codes a colour, so the brand can be restyled by changing the tokens.
  */
+
+/* Fonts: IBM Plex, self-hosted, Latin subset, only the four weights used. font-display: swap means text
+   shows at once in the fallback font and switches when the file arrives (it never blocks the first paint). */
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("../assets/fonts/plex-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("../assets/fonts/plex-sans-700.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("../assets/fonts/plex-mono-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("../assets/fonts/plex-mono-600.woff2") format("woff2"); }
+
+/* The numerals on the opening screen's "Before you start" list: I) II) III) IV) V) */
+@counter-style roman-paren { system: extends upper-roman; suffix: ") "; }
+
 :root {
   /* Colours */
   --color-primary: #8200DB;
+  --color-primary-dark: #6B00B5;        /* hover/pressed buttons, "needs an answer" text */
   --color-primary-contrast: #FFFFFF;
   --color-primary-light: #F3E8FF;
+  --color-primary-soft: #E9D4FF;
   --color-bg: #FFFFFF;
   --color-text: #0C0A09;
-  --color-muted: #79716B;
+  --color-muted: #79716B;               /* fine on white (4.8:1) */
+  --color-muted-strong: #57534E;        /* muted text on fills and tints (7:1); brand muted is only 4.4:1 there */
   --color-border: #E7E5E4;
-  --color-border-strong: #79716B;
+  --color-border-strong: #79716B;       /* edges of things you can tap */
   --color-fill: #F5F5F4;
   --color-bar-other: #A8A29E;
-  --color-error: #B42318;
-  --color-error-light: #FEF3F2;
-  --color-focus: #0C0A09;
+  --color-attention: var(--color-primary-dark);
+  --color-attention-light: var(--color-primary-light);
+  --color-focus: var(--color-primary);
 
-  /* Fonts */
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Fonts (the system stack is the fallback while the files load) */
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Type sizes */
   --text-xs: 0.75rem;
@@ -28,9 +44,11 @@
   --text-base: 1rem;
   --text-lg: 1.125rem;
   --text-xl: 1.5rem;
-  --text-2xl: 2rem;
-  --text-code: 3.5rem;
+  --text-2xl: 2rem;                     /* headline on a phone */
+  --text-3xl: 2.75rem;                  /* headline on a laptop */
+  --text-code: 5rem;                    /* the 3-letter code */
   --line-height: 1.5;
+  --tracking-mono: 0.08em;
 
   /* Spacing */
   --space-1: 4px;
@@ -43,11 +61,18 @@
 
   /* Shape and sizing */
   --radius: 0;
-  --border-width: 2px;
+  --rule: 1px;                          /* thin rules and card edges */
+  --border-width: 2px;                  /* edges of controls */
   --tap-min: 48px;
-  --container-width: 640px;
-  --bar-height: 16px;
-  --logo-height: 44px;
+  --container-width: 720px;
+  --bar-height: 12px;
+  --logo-height: 40px;
+  --focus-width: 3px;
+  --focus-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  :root { --text-code: 6rem; }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -71,36 +96,73 @@ body {
   padding: var(--space-5) var(--space-4) var(--space-7);
 }
 
+/* Header: logo + mono label, thin rule underneath. Its edges line up with the page content. */
 .site-header {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) max(var(--space-4), calc((100% - var(--container-width)) / 2 + var(--space-4)));
+  border-bottom: var(--rule) solid var(--color-border);
 }
 .brand-logo { display: block; height: var(--logo-height); width: auto; }
-.site-header-note { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.site-header-note {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-muted-strong);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono);
+}
 
-h1 { font-size: var(--text-xl); line-height: 1.2; margin: 0 0 var(--space-4); }
-h2 { font-size: var(--text-lg); margin: var(--space-6) 0 var(--space-2); }
+/* Headlines */
+h1 { font-size: var(--text-2xl); font-weight: 700; line-height: 1.1; letter-spacing: -0.015em; margin: 0 0 var(--space-4); }
+h2 { font-size: var(--text-lg); font-weight: 700; line-height: 1.25; margin: var(--space-6) 0 var(--space-2); }
 h1:focus { outline: none; }
 p { margin: 0 0 var(--space-4); }
-a { color: var(--color-primary); }
+a { color: var(--color-primary); text-underline-offset: 0.18em; }
+@media (min-width: 768px) {
+  .container { padding-top: var(--space-6); }
+  h1 { font-size: var(--text-3xl); margin-bottom: var(--space-5); }
+}
 
 .muted { color: var(--color-muted); font-size: var(--text-sm); }
+
+/* Eyebrow: small uppercase mono label, with a purple square marker */
 .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-muted);
-  margin: 0 0 var(--space-2);
+  letter-spacing: var(--tracking-mono);
+  color: var(--color-muted-strong);
+  margin: 0 0 var(--space-3);
 }
+.eyebrow::before { content: ""; width: 8px; height: 8px; background: var(--color-primary); flex: none; }
 
-/* Bulleted list with a tight gap between bullet and text */
-.before-list { list-style: disc; margin: 0 0 var(--space-4); padding-left: 1.1em; }
-.before-list li { margin-bottom: var(--space-1); padding-left: 0; }
-.before-title { margin-top: var(--space-4); }
+/* "Before you start" card: bordered, rules between the rows, mono numerals I) to V) */
+.card { border: var(--rule) solid var(--color-border); margin: var(--space-4) 0 0; }
+.before-title {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-fill);
+  border-bottom: var(--rule) solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono);
+  color: var(--color-muted-strong);
+}
+.before-list {
+  list-style: roman-paren outside;
+  margin: 0;
+  padding: 0 var(--space-2) 0 2.85rem;
+}
+.before-list li { padding: 6px 0; }
+.before-list li + li { border-top: var(--rule) solid var(--color-border); }
+.before-list li::marker { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-primary); }
 
 /* Buttons */
 .btn {
@@ -114,57 +176,80 @@ a { color: var(--color-primary); }
   background: var(--color-primary);
   color: var(--color-primary-contrast);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
 }
+.btn:active { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }
 .btn-secondary { background: var(--color-bg); color: var(--color-primary); }
+.btn-secondary:active { background: var(--color-primary-soft); border-color: var(--color-primary); color: var(--color-primary-dark); }
+.btn:disabled { opacity: 0.55; cursor: default; }
 .btn-small { min-height: 40px; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
+@media (hover: hover) {
+  .btn:not(:disabled):hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }
+  .btn-secondary:not(:disabled):hover { background: var(--color-primary-light); border-color: var(--color-primary); color: var(--color-primary-dark); }
+}
+
+/* Visible keyboard focus everywhere: a purple ring with a white gap, so it shows on purple fills too */
 .btn:focus-visible,
 .choice input:focus-visible + .choice-box,
+.option input:focus-visible + .option-text,
+.text-input:focus-visible,
+.check input:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
 }
 
 .actions { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-5); }
 .actions-row { flex-direction: row; justify-content: space-between; }
 .actions-row .btn { flex: 1 1 0; }
 
+/* Callout box */
 .callout {
   padding: var(--space-3) var(--space-4);
+  border: var(--rule) solid var(--color-primary-soft);
   border-left: 4px solid var(--color-primary);
   background: var(--color-primary-light);
   margin: 0 0 var(--space-4);
 }
-.callout-error { border-left-color: var(--color-error); background: var(--color-error-light); color: var(--color-error); font-weight: 600; }
+.callout-error { border: var(--border-width) solid var(--color-attention); background: var(--color-attention-light); color: var(--color-attention); font-weight: 700; }
 
-/* Progress */
-.progress { height: 8px; background: var(--color-fill); border: 1px solid var(--color-border); margin-bottom: var(--space-5); }
+/* Progress: purple bar on a stone track */
+.progress { height: 6px; background: var(--color-fill); border: var(--rule) solid var(--color-border); margin-bottom: var(--space-5); }
 .progress-fill { height: 100%; width: 0; background: var(--color-primary); }
 
-.scale-key { font-size: var(--text-sm); color: var(--color-muted); }
+.scale-key {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-fill);
+  border: var(--rule) solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-muted-strong);
+}
+.scale-key strong { font-weight: 600; color: var(--color-text); }
 
-/* One item = one fieldset */
+/* One item = one bordered card (a fieldset) */
 .item {
   margin: 0 0 var(--space-3);
   padding: var(--space-4);
   min-width: 0;
-  border: 1px solid var(--color-border);
+  border: var(--rule) solid var(--color-border);
   border-radius: var(--radius);
 }
 /* float + clear keeps the legend inside the border instead of straddling it */
-.item legend { float: left; width: 100%; padding: 0; margin: 0 0 var(--space-3); font-weight: 600; }
+.item legend { float: left; width: 100%; padding: 0; margin: 0 0 var(--space-3); font-weight: 700; }
 .item legend + * { clear: both; }
-.item.is-missing { border: 2px solid var(--color-error); background: var(--color-error-light); }
-/* the grey words on the pink background were 4.4:1; the dark text colour clears the 4.5:1 minimum */
+/* "Needs an answer": a heavy purple edge on a light purple tint; text stays dark or deep purple (8:1 or better) */
+.item.is-missing { border: var(--border-width) solid var(--color-primary); background: var(--color-attention-light); }
 .item.is-missing .choice-word, .item.is-missing .optional { color: var(--color-text); }
-.item-error { display: none; margin: var(--space-2) 0 0; color: var(--color-error); font-size: var(--text-sm); font-weight: 600; }
+.item-error { display: none; margin: var(--space-2) 0 0; color: var(--color-attention); font-size: var(--text-sm); font-weight: 700; }
 .item.is-missing .item-error { display: block; }
 
-.scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); }
+.scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
 .choice { position: relative; display: flex; flex-direction: column; cursor: pointer; }
 .choice input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .choice-box {
@@ -175,6 +260,8 @@ a:focus-visible,
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius);
   background: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 .choice input:checked + .choice-box {
@@ -182,13 +269,17 @@ a:focus-visible,
   border-color: var(--color-primary);
   color: var(--color-primary-contrast);
 }
-.choice-word { min-height: 1.4em; margin-top: var(--space-1); text-align: center; font-size: var(--text-xs); color: var(--color-muted); }
+.choice-word { min-height: 1.4em; margin-top: var(--space-1); text-align: center; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-muted); }
+@media (hover: hover) {
+  .choice input:not(:checked):hover + .choice-box,
+  .option input:not(:checked):hover + .option-text { background: var(--color-primary-light); border-color: var(--color-primary); }
+}
 
 /* Background questions (screens 7 and 8) */
-.item-label { display: block; margin: 0 0 var(--space-3); font-weight: 600; }
+.item-label { display: block; margin: 0 0 var(--space-3); font-weight: 700; }
 .optional { font-weight: 400; color: var(--color-muted); }
-/* A follow-up sits inline under its parent question, set in from the left */
-.item.followup { margin-left: var(--space-4); border-left: 4px solid var(--color-primary); }
+/* A follow-up sits inline under its parent question, set in from the left behind a thin purple rule */
+.item.followup { margin-left: var(--space-4); border-left: 3px solid var(--color-primary); }
 
 .text-input {
   display: block;
@@ -201,8 +292,7 @@ a:focus-visible,
   color: var(--color-text);
   font: inherit;
 }
-.text-input:disabled { background: var(--color-fill); color: var(--color-muted); }
-.text-input:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.text-input:disabled { background: var(--color-fill); color: var(--color-muted-strong); }
 
 .options { display: flex; flex-direction: column; gap: var(--space-2); }
 .option { position: relative; display: block; cursor: pointer; }
@@ -223,21 +313,47 @@ a:focus-visible,
   border-color: var(--color-primary);
   color: var(--color-primary-contrast);
 }
-.option input:focus-visible + .option-text { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 
 .check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--tap-min); margin-top: var(--space-2); cursor: pointer; }
 .check input { width: 24px; height: 24px; margin: 0; accent-color: var(--color-primary); }
 
-/* Results */
-.code { font-family: var(--font-mono); font-size: var(--text-code); font-weight: 700; line-height: 1.1; letter-spacing: 0.08em; margin: 0 0 var(--space-2); color: var(--color-primary); }
-.code-names { font-size: var(--text-lg); margin-bottom: var(--space-5); }
-.score-row { margin-bottom: var(--space-5); }
-.score-head { display: flex; justify-content: space-between; gap: var(--space-3); font-weight: 600; margin-bottom: var(--space-1); }
-.score-value { font-family: var(--font-mono); white-space: nowrap; }
-.bar { height: var(--bar-height); background: var(--color-fill); border: 1px solid var(--color-border); }
+/* Results: stat strip with the code, six score cards, callouts, reference code */
+.stat-strip {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background: var(--color-fill);
+  border: var(--rule) solid var(--color-border);
+  border-top: 4px solid var(--color-primary);
+}
+.code { font-family: var(--font-mono); font-size: var(--text-code); font-weight: 600; line-height: 1.05; letter-spacing: 0.06em; margin: 0 0 var(--space-2); color: var(--color-primary); }
+.code-names { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: var(--tracking-mono); color: var(--color-muted-strong); }
+
+#results-bars { margin-bottom: var(--space-5); }
+.score-row { margin-bottom: var(--space-3); padding: var(--space-4); border: var(--rule) solid var(--color-border); background: var(--color-bg); }
+.score-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); font-weight: 700; margin-bottom: var(--space-2); }
+.score-value { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+.bar { height: var(--bar-height); background: var(--color-fill); border: var(--rule) solid var(--color-border); }
 .bar-fill { height: 100%; background: var(--color-bar-other); }
 .bar-fill.in-code { background: var(--color-primary); }
-.score-blurb { margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--color-muted); }
+.score-blurb { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--color-muted); }
+@media (min-width: 768px) {
+  #results-bars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .score-row { margin-bottom: 0; }
+}
+
+/* Reference code: mono, in a box */
+#results-ref-code {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  background: var(--color-fill);
+  border: var(--rule) solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: var(--tracking-mono);
+}
+#results-ref { margin-top: var(--space-5); padding-top: var(--space-4); border-top: var(--rule) solid var(--color-border); line-height: 1.9; }
 
 [data-phase1-note] { margin-top: var(--space-4); }
 
@@ -246,4 +362,7 @@ a:focus-visible,
 
 @media (min-width: 480px) {
   .actions:not(.actions-row):not(.actions-stack) { flex-direction: row; flex-wrap: wrap; }
+}
+@media (min-width: 768px) {
+  .item { padding: var(--space-5); }
 }

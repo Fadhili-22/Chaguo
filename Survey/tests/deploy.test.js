@@ -128,7 +128,9 @@ const pngSize = (file) => {
   console.log('\nPage weight');
 
   test('what a visitor downloads on the opening screen is under 300 KB (raw and gzipped)', () => {
+    const fontUrls = [...read('css/styles.css').matchAll(/url\("\.\.\/(assets\/fonts\/[^"]+\.woff2)"\)/g)].map((m) => m[1]);
     const urls = ['index.html', 'css/styles.css', 'assets/chaguo-logo-transparent.png', 'assets/favicon-32.png']
+      .concat(fontUrls)
       .concat([...builtHtml.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]));
     let raw = 0; let gz = 0;
     urls.forEach((u) => {
@@ -180,6 +182,7 @@ const pngSize = (file) => {
     assert.deepStrictEqual(directives['script-src'], ["'self'"]);
     assert.deepStrictEqual(directives['style-src'], ["'self'"]);
     assert.deepStrictEqual(directives['img-src'], ["'self'"]);
+    assert.deepStrictEqual(directives['font-src'], ["'self'"]); // IBM Plex is self-hosted (assets/fonts/)
     assert.deepStrictEqual(directives['base-uri'], ["'none'"]);
     assert.deepStrictEqual(directives['form-action'], ["'none'"]);
     assert.ok(!/unsafe-inline|unsafe-eval|\*|http:/.test(csp));
