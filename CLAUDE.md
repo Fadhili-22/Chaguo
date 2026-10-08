@@ -107,7 +107,7 @@ Branding is applied in survey phase 5; earlier phases keep styling minimal but u
 - [x] Open Psychometrics dataset downloaded and initial processing started (`Dataset/`)
 - [x] Survey phase 1 — scaffold, consent, items, scoring/results (built; opening-screen copy is a DRAFT awaiting review)
 - [x] Survey phase 2 — background questions + branching (built, both test suites pass; question wording is a DRAFT awaiting review; not yet committed, awaiting manual test)
-- [x] Survey phase 3 — Sheet + Apps Script saving (built; all six test suites pass; formula neutralising and "saved as you go" consent wording done; consent wording is a DRAFT awaiting review; not yet committed — awaiting a real-Sheet test: deploy per `Survey/apps-script/SETUP.md`, check `SEND_MODE` "cors" vs "no-cors" and the close-tab beacon)
+- [x] Survey phase 3 — Sheet + Apps Script saving (built, committed, and tested against the real Google Sheet: works with `SEND_MODE` "cors" (only the endpoint URL in `Survey/js/config.js` was changed); all six test suites pass; formula neutralising and "saved as you go" consent wording done; consent wording is still a DRAFT awaiting review)
 - [ ] Survey phase 4 — quality checks + deploy
 - [ ] Survey phase 5 — branding
 - [ ] Confirm the 14-cluster list
