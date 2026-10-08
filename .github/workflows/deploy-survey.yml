@@ -1,0 +1,65 @@
+# Publishes the survey (Survey/) to GitHub Pages at https://fadhili-22.github.io/Chaguo/
+#
+# Only the files the live survey needs are published: Survey/scripts/build-site.mjs copies index.html, css/,
+# js/ and assets/ into a fresh _site/ folder, and ONLY that folder is uploaded. Nothing else in the repo
+# (Dataset/, tests/, apps-script/, README, ...) ever reaches the website.
+#
+# Runs when something under Survey/ changes on main, or by hand (Actions tab -> Deploy survey -> Run workflow).
+name: Deploy survey
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Survey/**'
+      - '.github/workflows/deploy-survey.yml'
+  workflow_dispatch:
+
+# Pages needs to read the repo, write to Pages, and prove who it is (id-token).
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push replaces one that is still waiting.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: Survey
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The quick tests that need no browser. If one fails, nothing is published.
+      - name: Run tests
+        run: |
+          node tests/scoring.test.js
+          node tests/background.test.js
+          node tests/snapshot.test.js
+          node tests/apps-script.test.js
+          node tests/deploy.test.js
+
+      - name: Build the site folder (published files only)
+        run: node scripts/build-site.mjs _site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: Survey/_site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -8,7 +8,7 @@ import path from 'node:path';
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function launchBrowser({ width = 360, height = 800 } = {}) {
+export async function launchBrowser({ width = 360, height = 800, args = [] } = {}) {
   const candidates = [
     process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -25,7 +25,7 @@ export async function launchBrowser({ width = 360, height = 800 } = {}) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'chaguo-chrome-'));
   const chrome = spawn(exe, [
     '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-    '--no-first-run', '--disable-gpu', `--window-size=${width},${height}`, 'about:blank'
+    '--no-first-run', '--disable-gpu', `--window-size=${width},${height}`, ...args, 'about:blank'
   ], { stdio: 'ignore' });
 
   let targets;
@@ -62,8 +62,14 @@ export async function launchBrowser({ width = 360, height = 800 } = {}) {
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: true });
 
+  // HOUSE RULE: only ever close the browser THIS test started (its own process handle, its own profile folder).
+  // Never kill Chrome by name or by "all chrome processes": that would close the owner's own windows too.
+  // So: ask our browser to quit through DevTools (Browser.close), and only if that fails end our own handle.
+  process.on('exit', () => { try { chrome.kill(); } catch {} }); // a crashed test still cleans up its own browser
   async function close() {
-    ws.close(); chrome.kill();
+    try { await Promise.race([send('Browser.close'), sleep(2000)]); } catch {}
+    try { ws.close(); } catch {}
+    chrome.kill();
     await sleep(300);
     try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
   }

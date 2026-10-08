@@ -9,10 +9,14 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { makeSiteCopy } from './lib/site.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const BASE = pathToFileURL(path.join(here, '..', 'index.html')).href;
+// Runs against a temp COPY of the survey with saving switched off, so this test can never send rows to the real
+// Google Sheet (the repo's own js/config.js holds the real endpoint).
+const site = makeSiteCopy();
+const BASE = site.fileUrl;
 const SHOTS = process.argv.includes('--screenshots') ? path.join(here, 'screenshots') : null;
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 
@@ -149,7 +153,7 @@ const EXPECTED_LIST = [
   'Voluntary (you can stop at any time)',
   'Time-friendly (about 7 to 10 minutes)',
   "Answers (your interests, course details and satisfaction) are saved as you go, so if you stop partway, what you've answered is kept. They are used for research and to train Chaguo's model",
-  'Contact (njenga.munyua@strathmore.edu): email us with the reference code shown at the end to have your answers deleted'
+  'Contact (njenga.munyua@strathmore.edu): email us with the reference code shown at the end of the survey to have your answers deleted'
 ];
 const listText = await ev(`[...document.querySelectorAll('#screen-start .before-list li')].map(li=>li.textContent)`);
 check('"Before you start" list reads exactly as agreed (five points; saved as you go + deletion by reference code)', JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST), JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST) ? '' : JSON.stringify(listText));
@@ -391,7 +395,9 @@ check('no JS errors', errs.length === 0, errs.length ? JSON.stringify(errs).slic
 const failed = results.filter((r) => !r).length;
 console.log(`
 ${results.length - failed}/${results.length} checks passed`);
+try { await Promise.race([send('Browser.close'), sleep(2000)]); } catch {} // only the browser this test started (own profile); never kill Chrome by name
 ws.close(); chrome.kill();
 await sleep(300);
 try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
+site.cleanup();
 process.exit(failed ? 1 : 0);

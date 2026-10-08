@@ -9,8 +9,8 @@
 (function () {
   'use strict';
 
-  // Replace with the live survey address before sharing (used in the WhatsApp message).
-  var SURVEY_URL = 'https://SURVEY_URL_PLACEHOLDER';
+  // SURVEY_URL (WhatsApp share text) and SURVEY_OPEN come from config.js.
+  var SURVEY_OPEN_NOW = typeof SURVEY_OPEN !== 'undefined' && SURVEY_OPEN === true; // fails closed
 
   var STORAGE_KEY = 'chaguo_survey_state_v2';
   var UNDERAGE_KEY = 'chaguo_survey_underage';
@@ -35,13 +35,15 @@
     C: { name: 'Conventional', blurb: 'You tend to enjoy organised, detail-focused work: keeping records, working with numbers and following clear steps.' }
   };
 
-  var debugParam = new URLSearchParams(window.location.search).get('debug');
-  var DEBUG_ON = debugParam === '1' || debugParam === 'fail';
+  var urlParams = new URLSearchParams(window.location.search);
+  var debugParam = urlParams.get('debug');
+  var DEBUG_ON = debugParam === '1' || debugParam === 'fail';  // shows the debug button; rows are marked is_test
+  var TEST_ON = urlParams.get('test') === '1';                  // no button; only marks rows is_test = "yes"
 
   // ---- State ------------------------------------------------------------------------------
 
   var state = {
-    screen: 'start',        // start | exit | items | background | results
+    screen: 'start',        // start | closed | exit | items | background | results
     itemScreen: 1,          // 1..6, used when screen === 'items'
     responseId: null,
     startedAtMs: null,      // set when the respondent presses the 18+/agree button
@@ -508,7 +510,7 @@
 
   // ---- Saving (snapshots; see sender.js and snapshot.js) ------------------------------------
 
-  var IS_TEST = Snapshot.isTestEnvironment(window.location, DEBUG_ON);
+  var IS_TEST = Snapshot.isTestEnvironment(window.location, DEBUG_ON || TEST_ON);
 
   // The full response so far. `stage` is the last completed screen, or 'complete'.
   function makeSnapshot(stage) {
@@ -534,7 +536,7 @@
     state.lastStage = stage;
     state.dirty = false;
     persist();
-    Sender.send(snapshot);
+    try { Sender.send(snapshot); } catch (e) { /* saving must never stop the respondent moving on */ }
   }
 
   // When the page is hidden or closed mid-survey: send answers given since the last snapshot with
@@ -634,7 +636,7 @@
     $('results-ref-code').textContent = ref;
     $('results-save-failed').hidden = true;
 
-    var text = 'My interest code is ' + h.code + ' — find yours: ' + SURVEY_URL;
+    var text = 'My interest code is ' + h.code + ' — find yours: ' + (typeof SURVEY_URL === 'string' ? SURVEY_URL : '');
     $('results-share').href = 'https://wa.me/?text=' + encodeURIComponent(text);
   }
 
@@ -654,7 +656,9 @@
   // ---- Wiring -----------------------------------------------------------------------------
 
   function init() {
-    if (safeGet(UNDERAGE_KEY) === '1') {
+    if (!SURVEY_OPEN_NOW) {
+      state.screen = 'closed'; // nothing else is reachable, nothing is restored, nothing is sent
+    } else if (safeGet(UNDERAGE_KEY) === '1') {
       state.screen = 'exit';
     } else {
       restore();
@@ -662,6 +666,7 @@
 
     // One button is both age confirmation and consent; timing starts here.
     $('start-agree').addEventListener('click', function () {
+      if (!SURVEY_OPEN_NOW) return; // belt and braces: the button is not on screen when closed
       state.startedAtMs = Date.now();
       state.responseId = makeUuid();
       goTo('items', 1);
@@ -681,7 +686,7 @@
     $('background-next').addEventListener('click', onBackgroundNext);
     $('results-retry').addEventListener('click', function () { trySavingFinal(true); });
 
-    if (DEBUG_ON) {
+    if (DEBUG_ON && SURVEY_OPEN_NOW) {
       $('debug-bar').hidden = false;
       $('debug-fill').addEventListener('click', debugFillAndFinish);
     }

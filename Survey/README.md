@@ -1,6 +1,6 @@
-# Chaguo survey (phases 1-3)
+# Chaguo survey (phases 1-4)
 
-Static survey in plain HTML, CSS and vanilla JS. No build step, no libraries, no analytics.
+Static survey in plain HTML, CSS and vanilla JS. No build step for the code itself (the deploy step only copies files), no libraries, no analytics. Published to GitHub Pages at <https://fadhili-22.github.io/Chaguo/> (see `LAUNCH.md`).
 Covers: one opening screen (intro, age confirmation and consent), 48 RIASEC items (screens 1-6), two background screens with KUCCPS branching (screens 7-8), a results screen, and saving to a Google Sheet through a Google Apps Script web app (set it up with `apps-script/SETUP.md`). With `SURVEY_ENDPOINT` empty in `js/config.js`, nothing is saved: snapshots are printed to the browser console instead.
 
 ## Run it locally (Windows)
@@ -18,6 +18,8 @@ Then open <http://localhost:8000>. Stop the server with Ctrl+C.
 
 To try it on your phone, put the phone on the same Wi-Fi, run the server, and open `http://<your-PC-IP>:8000` (find the IP with `ipconfig`).
 
+> **Local runs save to your real Sheet.** Opening `index.html` on your computer uses `js/config.js` like the live site does, so with `SURVEY_ENDPOINT` set, your test runs add rows to the real Sheet (marked `is_test` = `yes`). For casual testing, set `SURVEY_ENDPOINT = ""` (answers are then only printed in the console) and put it back before you push. The automated tests never touch the real Sheet.
+
 ## Debug helper
 
 Add `?debug=1` to the address (e.g. `index.html?debug=1`). A button appears that fills all 48 items with random answers, answers the attention check correctly (Dislike), fills both background screens with valid random answers (random admission route, so different branches get exercised), and jumps to results. Use `?debug=fail` to answer the attention check wrongly instead. Without the flag the button does not exist.
@@ -26,7 +28,14 @@ The finished response is printed to the browser console (F12 -> Console) when re
 
 ## Run the tests
 
-There are six test files. Run them from the `Survey` folder.
+Run **all** of them with one command from the `Survey` folder:
+
+```powershell
+node tests/run-all.mjs            # all nine test files
+node tests/run-all.mjs --quick    # only the ones that need no browser (what the deploy workflow runs)
+```
+
+None of them can send anything to the real Google Sheet: the browser tests run against temp copies of the survey with their own `config.js`. The nine files:
 
 **1. Scoring and items** (pure logic; needs Node.js only):
 
@@ -82,13 +91,46 @@ node tests/saving.test.mjs
 
 Runs the survey against a small local mock endpoint (the survey is copied to a temp folder with `config.js` pointed at the mock). Checks nothing is sent before consent or for under-18s, one full snapshot per screen plus "complete", retry and queue behaviour, the final-failure message and button, the reference code, both `SEND_MODE`s, and the close-page beacon.
 
+**7. Published files** (pure logic; needs Node.js only):
+
+```powershell
+node tests/deploy.test.js
+```
+
+Builds the site folder exactly as the workflow does and checks: only `index.html`, `css/`, `js/` and `assets/` are published, the scripts are bundled into one `js/survey.js` that is the source files concatenated in order (and is valid JavaScript), every link is relative (works under `/Chaguo/`), page weight, `SURVEY_URL`, the security policy (CSP) and that nothing in the page would break under it, the share-preview and icon tags (absolute addresses, 1200x630 image), and the workflow file.
+
+**8. Live-site behaviour** (same requirements as test 3):
+
+```powershell
+node tests/live.test.mjs
+```
+
+Serves the built (bundled) site under `/Chaguo/` on a made-up public hostname with the real security policy. Checks every file loads, the policy blocks outsiders but never the survey, `is_test` is `no` on a public host and `yes` with `?test=1` (no debug button), `SURVEY_OPEN = false` closes the survey and sends nothing, and the WhatsApp text uses the real address.
+
+**9. Slow network** (same requirements as test 3):
+
+```powershell
+node tests/slow-network.test.mjs
+```
+
+Throttles the browser and loads the built (bundled) site (fast 3G, slow 3G, very slow) and prints how long the opening screen takes to become usable on a first visit. Fails only if slow 3G (400 kbps, 400 ms) takes more than 3 seconds.
+
+## Publishing (phase 4)
+
+- **One script file when published.** In the repo `index.html` loads the scripts one by one (`js/config.js`, `js/items.js`, ... `js/app.js`). The build joins them, in that order and unchanged, into a single `js/survey.js` and points the published `index.html` at it (4 requests instead of 11: the opening screen is usable in about 1.7 s instead of 4.0 s on slow 3G). Source files stay split, so edit them as before; to add a script, add its `<script>` tag to `index.html` and the build picks it up. `config.js` is part of the bundle, so changing a setting in it needs a push, like any other change.
+- `scripts/build-site.mjs` copies the published files into `_site/` (git-ignored), bundles the scripts, and checks them; the GitHub Actions workflow `.github/workflows/deploy-survey.yml` runs the Node-only tests, builds, and publishes only that folder. Try the build yourself: `node scripts/build-site.mjs` (or give it another folder name, e.g. `_site`).
+- Settings that change what goes live are in `js/config.js`: `SURVEY_URL`, `SURVEY_OPEN` (false = closed), `SURVEY_ENDPOINT`, `SEND_MODE`, `CONSENT_VERSION`.
+- `?test=1` marks your own runs as tests (`is_test` = `yes`) without the debug button. `?debug=1` does that and shows the debug button.
+- `index.html` has a Content-Security-Policy `<meta>` tag: the page may load only its own files and talk only to `script.google.com` / `script.googleusercontent.com`. If you add web fonts or other outside resources (phase 5), the policy must be widened; `tests/deploy.test.js` will tell you.
+- Share-preview and icon files in `assets/`: `og-image.png` (1200x630), `favicon-32.png`, `apple-touch-icon.png`. `assets/` must contain only images the site uses (the build refuses unknown file types, and `.gitignore` blocks `.jpg`/`.jpeg` there).
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | `index.html` | All screens; one visible at a time |
 | `css/styles.css` | Styling; every colour, font and size is a variable on `:root` |
-| `js/config.js` | The settings you edit: `SURVEY_ENDPOINT`, `SEND_MODE`, `CONSENT_VERSION` |
+| `js/config.js` | The settings you edit: `SURVEY_ENDPOINT`, `SEND_MODE`, `SURVEY_URL`, `SURVEY_OPEN`, `CONSENT_VERSION` |
 | `js/items.js` | The 48 items (exact codebook wording), attention check, screen layout |
 | `js/scoring.js` | Pure functions: scores, Holland code, tie rule, response object |
 | `js/background.js` | Pure functions: background questions, KUCCPS branching, validation, the 13 background response fields |
@@ -101,7 +143,12 @@ Runs the survey against a small local mock endpoint (the survey is copied to a t
 | `tests/background.test.js` | Plain-Node tests for the background questions |
 | `tests/browser.test.mjs` | Headless-browser test of the whole flow |
 | `tests/snapshot.test.js`, `tests/apps-script.test.js` | Plain-Node tests for snapshots and the Apps Script |
-| `tests/saving.test.mjs`, `tests/lib/cdp.mjs` | Headless-browser test of saving against a mock endpoint, and its browser helper |
+| `tests/saving.test.mjs` | Headless-browser test of saving against a mock endpoint |
+| `tests/deploy.test.js`, `tests/live.test.mjs`, `tests/slow-network.test.mjs` | Published files, live-site behaviour under `/Chaguo/`, slow-network timing |
+| `tests/run-all.mjs` | Runs every test file and prints a summary |
+| `tests/lib/` | Test helpers: `cdp.mjs` (headless browser), `site.mjs` (temp copy of the survey, `/Chaguo/` server), `mock-endpoint.mjs` (stand-in for Google) |
+| `scripts/build-site.mjs` | Builds the folder that gets published (only the files the survey needs) |
+| `LAUNCH.md` | Steps to go live on GitHub Pages and a pre-launch checklist |
 | `assets/` | Logo files (kept byte-identical with `Web-App/assets/`) |
 
 ## Scoring rules
@@ -136,8 +183,8 @@ Flat. 84 core fields, in this order: `response_id`, `schema_version`, `started_a
 | `stage` | `screen_1` ... `screen_8` (last completed screen) / `complete` |
 | `is_complete` | `yes` / `no` |
 | `client_sent_at` | ISO time of this send (respondent's clock) |
-| `consent_version` | from `CONSENT_VERSION` in `js/config.js`, e.g. `2026-10-v1` |
-| `is_test` | `yes` when `?debug` is on or the page runs from `file://`, localhost or a LAN address; otherwise `no` |
+| `consent_version` | from `CONSENT_VERSION` in `js/config.js`, e.g. `2026-10-v2` |
+| `is_test` | `yes` when `?test=1` or `?debug` is on, or the page runs from `file://`, localhost or a LAN address; otherwise `no` |
 | `received_at` | added by the server (UTC); not sent by the browser |
 
 In a snapshot sent mid-survey anything not known yet is `""` (unanswered items, scores, `holland_code`, `finished_at`, `attention_*`, timings of screens not reached). The 13 background fields:
@@ -172,8 +219,7 @@ In a snapshot sent mid-survey anything not known yet is `""` (unanswered items, 
 
 ## To do before going live
 
-- Set `SURVEY_URL` at the top of `js/app.js` (used in the WhatsApp share text).
-- Set `SURVEY_ENDPOINT` in `js/config.js` (see `apps-script/SETUP.md`), and test with your real Sheet.
+- Follow `LAUNCH.md` (GitHub Pages steps and the pre-launch checklist).
 - Review the opening-screen wording in `index.html` (marked DRAFT). If it changes, bump `CONSENT_VERSION` in `js/config.js`.
 
 ## Screen order

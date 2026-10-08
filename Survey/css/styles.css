@@ -159,6 +159,8 @@ a:focus-visible,
 .item legend { float: left; width: 100%; padding: 0; margin: 0 0 var(--space-3); font-weight: 600; }
 .item legend + * { clear: both; }
 .item.is-missing { border: 2px solid var(--color-error); background: var(--color-error-light); }
+/* the grey words on the pink background were 4.4:1; the dark text colour clears the 4.5:1 minimum */
+.item.is-missing .choice-word, .item.is-missing .optional { color: var(--color-text); }
 .item-error { display: none; margin: var(--space-2) 0 0; color: var(--color-error); font-size: var(--text-sm); font-weight: 600; }
 .item.is-missing .item-error { display: block; }
 

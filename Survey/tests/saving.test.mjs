@@ -6,60 +6,26 @@
 // How it works: the survey is copied to a temp folder and that copy's js/config.js is rewritten to point
 // at the mock (so the real config path is what gets tested, and the production code has no test hooks).
 // Needs Node 22+ and Chrome or Edge, like tests/browser.test.mjs. Nothing to install.
-import fs from 'node:fs';
-import http from 'node:http';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { launchBrowser, sleep } from './lib/cdp.mjs';
+import { makeSiteCopy, REAL_CONSENT_VERSION } from './lib/site.mjs';
+import { startMock } from './lib/mock-endpoint.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const SRC = path.join(here, '..');
-const COPY = fs.mkdtempSync(path.join(os.tmpdir(), 'chaguo-survey-'));
-for (const entry of ['index.html', 'css', 'js', 'assets']) fs.cpSync(path.join(SRC, entry), path.join(COPY, entry), { recursive: true });
-const BASE = pathToFileURL(path.join(COPY, 'index.html')).href;
+const site = makeSiteCopy(); // a temp copy of the survey; its config.js is rewritten per scenario
+const BASE = site.fileUrl;
 const QUEUE_KEY = 'chaguo_send_queue_v1';
 
-// ---- The mock endpoint -----------------------------------------------------------------------
-// Modes: ok | ok-no-cors-headers (stores, but the browser may not read the reply) | fail (HTTP 500) |
-//        reject ({ok:false}) | down (connection dropped)
-const mock = { mode: 'ok', failFirst: 0, requests: [], stored: [], url: '' };
-const STORING = ['ok', 'ok-no-cors-headers'];
-const server = http.createServer((req, res) => {
-  const cors = { 'Access-Control-Allow-Origin': '*' };
-  if (req.method === 'OPTIONS') { // a preflight: the survey must never cause one
-    mock.requests.push({ method: 'OPTIONS', headers: req.headers });
-    res.writeHead(204, { ...cors, 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'POST' });
-    return res.end();
-  }
-  let body = '';
-  req.on('data', (d) => (body += d));
-  req.on('end', () => {
-    let mode = mock.mode;
-    if (mock.failFirst > 0) { mock.failFirst--; mode = 'fail'; }
-    let parsed = null;
-    try { parsed = JSON.parse(body); } catch {}
-    mock.requests.push({ method: req.method, contentType: req.headers['content-type'], body: parsed, mode });
-    if (mode === 'down') return req.socket.destroy();
-    if (STORING.includes(mode) && parsed) mock.stored.push(parsed);
-    if (mode === 'fail') { res.writeHead(500, cors); return res.end('server error'); }
-    if (mode === 'reject') { res.writeHead(200, { ...cors, 'Content-Type': 'application/json' }); return res.end('{"ok":false,"error":"nope"}'); }
-    res.writeHead(200, mode === 'ok' ? { ...cors, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' });
-    res.end('{"ok":true}');
-  });
-});
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-mock.url = `http://127.0.0.1:${server.address().port}/exec`;
-const resetMock = (mode = 'ok') => { mock.mode = mode; mock.failFirst = 0; mock.requests.length = 0; mock.stored.length = 0; };
+// ---- The mock endpoint (tests/lib/mock-endpoint.mjs) -----------------------------------------
+const mock = await startMock();
+const resetMock = mock.reset;
 
+// The mock lives on another origin, so the copy's CSP is widened for it (the only change to the shipped CSP).
 function setConfig(endpoint, sendMode = 'cors') {
-  fs.writeFileSync(path.join(COPY, 'js', 'config.js'),
-    `var SURVEY_ENDPOINT = ${JSON.stringify(endpoint)};\nvar SEND_MODE = ${JSON.stringify(sendMode)};\nvar CONSENT_VERSION = "2026-10-v1";\n`);
+  site.configure({ endpoint, sendMode, connectOrigin: endpoint ? new URL(endpoint).origin : null });
 }
 
 // ---- Browser helpers -------------------------------------------------------------------------
 const b = await launchBrowser();
-const { ev, nav, logs } = b;
+const { ev, nav, logs, send } = b;
 const results = [];
 const check = (name, cond, extra = '') => { results.push(!!cond); console.log((cond ? '  ok    ' : '  FAIL  ') + name + (extra ? '  ' + extra : '')); };
 const visible = () => ev(`[...document.querySelectorAll('[data-screen]')].filter(e=>!e.hidden).map(e=>e.dataset.screen).join(',')`);
@@ -162,7 +128,7 @@ console.log('\n  -- normal run (SEND_MODE "cors") --');
   check('screen_1 snapshot: first eight items answered, rest ""', S[0].R1 === 3 && S[0].I2 === 3 && S[0].A2 === '' && S[0].course === '' && S[0].score_R === '');
   check('screen_4 snapshot includes the attention check', S[3].attention_check === 1 && S[3].attention_passed === true && S[2].attention_check === '');
   check('screen_7 snapshot has the course (trimmed); screen_6 does not', S[6].course === 'BSc Computer Science' && S[6].uni_type === 'private' && S[5].course === '');
-  check('is_test is "yes" (the page runs from a local file), consent_version is set', S.every((s) => s.is_test === 'yes' && s.consent_version === '2026-10-v1'));
+  check('is_test is "yes" (the page runs from a local file), consent_version matches config.js', S.every((s) => s.is_test === 'yes' && s.consent_version === REAL_CONSENT_VERSION));
   check('client_sent_at is an ISO time and does not go backwards', S.every((s, i) => /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(s.client_sent_at) && (i === 0 || s.client_sent_at >= S[i - 1].client_sent_at)));
   const posts = mock.requests.filter((r) => r.method === 'POST');
   check('sent as Content-Type text/plain (a simple request)', posts.length >= 9 && posts.every((r) => /^text\/plain/.test(r.contentType)), posts[0] && posts[0].contentType);
@@ -319,12 +285,24 @@ console.log('\n  -- leaving the page mid-survey (sendBeacon) --');
   check('on the results screen leaving the page sends nothing more', mock.requests.length === n);
 }
 
+console.log('\n  -- a browser with no fetch (e.g. Opera Mini): the survey still works --');
+{
+  setConfig(mock.url, 'cors'); resetMock('ok');
+  const inj = await send('Page.addScriptToEvaluateOnNewDocument', { source: 'delete window.fetch; delete navigator.sendBeacon;' });
+  await freshStart(); await agree();
+  await walk();
+  check('every Next works and the survey reaches results (saving never blocks it)', (await visible()) === 'results');
+  await waitFor(() => failedMsgVisible());
+  check('nothing could be sent, so the calm message appears; nothing reached the endpoint', (await failedMsgVisible()) && mock.requests.length === 0);
+  await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: inj.result.identifier });
+}
+
 const errs = logs.filter((l) => l.type === 'EXCEPTION' || l.type === 'error');
 check('no JS errors', errs.length === 0, errs.length ? JSON.stringify(errs).slice(0, 400) : '');
 
 const failed = results.filter((r) => !r).length;
 console.log(`\n${results.length - failed}/${results.length} checks passed`);
 await b.close();
-server.close();
-try { fs.rmSync(COPY, { recursive: true, force: true }); } catch {}
+await mock.close();
+site.cleanup();
 process.exit(failed ? 1 : 0);

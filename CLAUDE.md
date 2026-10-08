@@ -14,6 +14,7 @@ Research contact (used on the survey consent screen): njenga.munyua@strathmore.e
 - Fadhili is learning as he builds. Explain decisions briefly in plain language, and prefer simple, defensible solutions over clever ones. No frameworks or build steps unless a phase asks for them.
 - At the end of each phase: summarise what was built, how to test it, and what is still open. Then update the **Progress** section at the bottom of this file.
 - Only write inside the folder the current task is about.
+- **Never kill browser processes by name** (no `taskkill /IM chrome.exe`, `pkill`, `killall`, `Stop-Process` on Chrome/Edge): that would close Fadhili's own windows. Tests and tools may only close a browser they started themselves, with their own `--user-data-dir` (a throwaway temp folder) and their own process handle: quit it through the DevTools protocol (`Browser.close`), and only if that fails end that handle. `tests/lib/cdp.mjs` does this, and `tests/deploy.test.js` fails if a test/script/workflow contains a kill-by-name command.
 - Never add "Co-Authored-By" or "Generated with Claude Code" lines to commit messages or PR descriptions. Commit messages contain only the message itself.
 
 ## Folder layout
@@ -27,7 +28,8 @@ Chaguo/
 │   ├── notebooks/
 │   ├── notes/       ← see here for what analysis has been done so far
 │   └── processed/
-├── Survey/          ← anonymous Kenyan university-student survey (static site → GitHub Pages); phases 1–2 built
+├── .github/workflows/deploy-survey.yml  ← publishes Survey/ to GitHub Pages (only the files the live survey needs)
+├── Survey/          ← anonymous Kenyan university-student survey (static site → GitHub Pages); phases 1–4 built
 └── Web-App/         ← the Chaguo product itself (not started; empty)
 ```
 
@@ -83,6 +85,15 @@ Saving (phase 3, built):
 - Nothing is sent before consent, for under-18s, or before the first screen is complete. Sending never blocks the respondent; a failed snapshot waits in a one-slot sessionStorage queue and is superseded by the next one. `navigator.sendBeacon` sends unsent answers when the page is closed mid-survey (unverified against real Apps Script until deployed).
 - The script whitelists columns, caps lengths, checks enums and ranges, and prefixes `'` to strings starting with `= + - @` (tab/CR/LF) so Sheets never reads them as formulas (a leading `'` in a course name is that protection). Setup guide: `Survey/apps-script/SETUP.md`.
 
+Publishing (phase 4, built; awaiting go-live):
+- Live at https://fadhili-22.github.io/Chaguo/ (public repo; GitHub Pages, Source = GitHub Actions). The workflow `.github/workflows/deploy-survey.yml` runs on push to `main` when `Survey/**` changes (or manually): Node-only tests → `Survey/scripts/build-site.mjs` → upload only `Survey/_site` (index.html, css/, js/, assets/). Nothing else in the repo is published; the build refuses unknown file types in those folders. All paths in `index.html` are relative so they work under `/Chaguo/`.
+- The published site loads ONE script: `scripts/build-site.mjs` concatenates the scripts listed in `index.html` (in order, unchanged) into `js/survey.js` at build time only; the repo's source files and `index.html` stay split. The live, deploy and slow-network tests run against this bundled build (opening screen ≈1.7 s on slow 3G instead of ≈4.0 s). `config.js` is inside the bundle.
+- `Survey/js/config.js` holds every switch: `SURVEY_ENDPOINT`, `SEND_MODE`, `SURVEY_URL`, `SURVEY_OPEN` (anything but `true` = closed screen, nothing ever sent), `CONSENT_VERSION`.
+- `?test=1` marks a run `is_test = "yes"` on the live site without the debug button; `?debug=1|fail` still shows the debug button.
+- `index.html` has a strict Content-Security-Policy meta tag (own files only; connect only to script.google.com / script.googleusercontent.com), Open Graph + Twitter tags (absolute URLs, `assets/og-image.png` 1200×630), favicon/apple-touch-icon, `robots noindex`. Phase 5 must widen the CSP if it adds web fonts (or self-host them).
+- Go-live steps and the pre-launch checklist: `Survey/LAUNCH.md`. Run every test with `node tests/run-all.mjs` (from `Survey/`); tests never touch the real Sheet. Local runs of `index.html` DO use the real endpoint in config.js (rows marked `is_test`).
+- Never put photos or personal files in `Survey/assets/` (public repo; `.gitignore` blocks `.jpg/.jpeg` there).
+
 Build phases (one Claude Code prompt each):
 1. Scaffold + opening screen (age + consent) + items + scoring/results (no saving)
 2. Background questions + branching
@@ -108,7 +119,7 @@ Branding is applied in survey phase 5; earlier phases keep styling minimal but u
 - [x] Survey phase 1 — scaffold, consent, items, scoring/results (built; opening-screen copy is a DRAFT awaiting review)
 - [x] Survey phase 2 — background questions + branching (built, both test suites pass; question wording is a DRAFT awaiting review; not yet committed, awaiting manual test)
 - [x] Survey phase 3 — Sheet + Apps Script saving (built, committed, and tested against the real Google Sheet: works with `SEND_MODE` "cors" (only the endpoint URL in `Survey/js/config.js` was changed); all six test suites pass; formula neutralising and "saved as you go" consent wording done; consent wording is still a DRAFT awaiting review)
-- [ ] Survey phase 4 — quality checks + deploy
+- [x] Survey phase 4 — quality checks + deploy (built and tested locally, committed; owner pushes. Not live until Pages is enabled and the workflow has run: follow `Survey/LAUNCH.md`. Consent wording is now `CONSENT_VERSION` "2026-10-v2" — still a DRAFT awaiting final owner approval.)
 - [ ] Survey phase 5 — branding
 - [ ] Confirm the 14-cluster list
 - [ ] Write pre-registered decision rules for the Kenyan data into the project doc

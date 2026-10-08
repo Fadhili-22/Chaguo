@@ -10,7 +10,8 @@
  *   - A reply of {ok:false} means the server refused the data; retrying can't fix that, so such a
  *     snapshot is dropped after REJECT_LIMIT refusals.
  *
- * Settings come from config.js: SURVEY_ENDPOINT ("" = saving off) and SEND_MODE ("cors" | "no-cors").
+ * Settings come from config.js: SURVEY_ENDPOINT ("" = saving off), SEND_MODE ("cors" | "no-cors") and
+ * SURVEY_OPEN (anything but true = closed: nothing is sent, including a queue left over from earlier).
  * Plain <script>, browser only (the logic is exercised by tests/saving.test.mjs in a real browser).
  */
 (function (root) {
@@ -26,10 +27,13 @@
   var draining = null;     // promise while a drain loop is running
   var beaconedSeq = 0;
 
+  // Fails closed: only an explicit `SURVEY_OPEN = true` in config.js lets anything be sent.
+  function isOpen() { return root.SURVEY_OPEN === true; }
+
   function endpoint() {
     return typeof root.SURVEY_ENDPOINT === 'string' ? root.SURVEY_ENDPOINT.trim() : '';
   }
-  function enabled() { return endpoint() !== ''; }
+  function enabled() { return isOpen() && endpoint() !== ''; }
   function mode() { return root.SEND_MODE === 'no-cors' ? 'no-cors' : 'cors'; }
 
   function storageGet() { try { return root.sessionStorage.getItem(QUEUE_KEY); } catch (e) { return null; } }
@@ -55,6 +59,8 @@
 
   // One attempt. Resolves 'ok', 'rejected' (server said no) or 'failed' (network/timeout/odd reply).
   function post(snapshot) {
+    // Very old or "data-saving" browsers (e.g. Opera Mini) have no fetch: that is a failed save, never an error.
+    if (typeof root.fetch !== 'function') return Promise.resolve('failed');
     var body = JSON.stringify(snapshot);
     var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, TIMEOUT_MS);
@@ -122,13 +128,18 @@
   // Queue this snapshot and try to send. Resolves true if this snapshot (or a newer one) was saved,
   // false if it is still waiting. Resolves true straight away when saving is off.
   function send(snapshot) {
+    if (!isOpen()) return Promise.resolve(true); // closed: nothing is sent (and nothing is logged)
     if (!enabled()) {
       console.log('Chaguo: saving is off (SURVEY_ENDPOINT is empty). Snapshot:', snapshot);
       return Promise.resolve(true);
     }
     var seq = ++seqCounter;
-    setQueue({ seq: seq, snapshot: snapshot, rejected: 0 });
-    return drain().then(function () { return lastSavedSeq >= seq; });
+    try {
+      setQueue({ seq: seq, snapshot: snapshot, rejected: 0 });
+      return drain().then(function () { return lastSavedSeq >= seq; }, function () { return false; });
+    } catch (e) {
+      return Promise.resolve(false); // saving must never get in the respondent's way
+    }
   }
 
   // Try again with whatever is still queued (for example when the browser comes back online).

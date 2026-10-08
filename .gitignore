@@ -7,6 +7,11 @@ Dataset/processed/
 Survey/**/responses*
 Survey/**/*response*.csv
 Survey/data/
+# Output of Survey/scripts/build-site.mjs (what gets published to GitHub Pages); rebuilt by the workflow
+Survey/_site/
+# The survey ships no photos: never let a stray picture (for example a downloaded image) into the public repo
+Survey/assets/*.jpg
+Survey/assets/*.jpeg
 # Screenshots written by Survey/tests/browser.test.mjs --screenshots
 Survey/tests/screenshots/
 # Binary/serialised data formats that only ever hold data or model dumps

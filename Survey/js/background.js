@@ -95,13 +95,13 @@
     },
     {
       id: 'gender', screen: 8, type: 'radio', required: true,
-      label: 'Gender',
+      label: 'What is your gender?',
       options: opts([['female', 'Female'], ['male', 'Male'], ['prefer_not_to_say', 'Prefer not to say']])
     },
     {
       // Underscores, not hyphens: Google Sheets would turn "18-20" into a date.
       id: 'age_band', screen: 8, type: 'radio', required: true,
-      label: 'Age',
+      label: 'What is your age?',
       options: opts([
         ['18_20', '18–20'], ['21_23', '21–23'], ['24_26', '24–26'],
         ['27_plus', '27 or older'], ['prefer_not_to_say', 'Prefer not to say']
