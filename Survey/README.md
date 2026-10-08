@@ -1,7 +1,7 @@
-# Chaguo survey (phase 1)
+# Chaguo survey (phases 1-2)
 
 Static survey in plain HTML, CSS and vanilla JS. No build step, no libraries, no analytics.
-Phase 1 covers: one opening screen (intro, age confirmation and consent), 48 RIASEC items, a placeholder for the phase-2 background questions, and a results screen. **Nothing is saved anywhere yet.**
+Covers: one opening screen (intro, age confirmation and consent), 48 RIASEC items (screens 1-6), two background screens with KUCCPS branching (screens 7-8), and a results screen. **Nothing is saved anywhere yet** (phase 3).
 
 ## Run it locally (Windows)
 
@@ -20,13 +20,13 @@ To try it on your phone, put the phone on the same Wi-Fi, run the server, and op
 
 ## Debug helper
 
-Add `?debug=1` to the address (e.g. `index.html?debug=1`). A button appears that fills all 48 items with random answers, answers the attention check correctly (Dislike), and jumps to results. Use `?debug=fail` to answer the attention check wrongly instead. Without the flag the button does not exist.
+Add `?debug=1` to the address (e.g. `index.html?debug=1`). A button appears that fills all 48 items with random answers, answers the attention check correctly (Dislike), fills both background screens with valid random answers (random admission route, so different branches get exercised), and jumps to results. Use `?debug=fail` to answer the attention check wrongly instead. Without the flag the button does not exist.
 
 The finished response object is printed to the browser console (F12 -> Console) when results are reached.
 
 ## Run the tests
 
-There are two suites. Run both from the `Survey` folder.
+There are three test files. Run them from the `Survey` folder.
 
 **1. Scoring and items** (pure logic; needs Node.js only):
 
@@ -36,7 +36,15 @@ node tests/scoring.test.js
 
 It also compares all 48 item wordings with `Dataset/RIASEC_data12Dec2018/codebook.txt` when that file is present.
 
-**2. Browser flow** (drives a real headless browser through every screen at phone width):
+**2. Background questions** (pure logic; needs Node.js only):
+
+```powershell
+node tests/background.test.js
+```
+
+Branching per admission route, clearing of hidden answers, validation per screen, optional fields, and the 13 response fields.
+
+**3. Browser flow** (drives a real headless browser through every screen at phone width):
 
 ```powershell
 node tests/browser.test.mjs
@@ -58,8 +66,10 @@ It opens a throwaway browser profile in your temp folder and deletes it afterwar
 | `css/styles.css` | Styling; every colour, font and size is a variable on `:root` |
 | `js/items.js` | The 48 items (exact codebook wording), attention check, screen layout |
 | `js/scoring.js` | Pure functions: scores, Holland code, tie rule, response object |
+| `js/background.js` | Pure functions: background questions, KUCCPS branching, validation, the 13 background response fields |
 | `js/app.js` | State, screen flow, timings, rendering, sessionStorage, debug helper |
 | `tests/scoring.test.js` | Plain-Node tests for items, screens and scoring |
+| `tests/background.test.js` | Plain-Node tests for the background questions |
 | `tests/browser.test.mjs` | Headless-browser test of the whole flow |
 | `assets/` | Logo files (kept byte-identical with `Web-App/assets/`) |
 
@@ -80,9 +90,33 @@ It opens a throwaway browser profile in your temp folder and deletes it afterwar
 | 5 | A6 S6 E6 C6 R7 I7 A7 S7 |
 | 6 | E7 C7 R8 I8 A8 S8 E8 C8 |
 
-## Response object (schema_version "1")
+## Background questions (screens 7 and 8)
 
-Flat, 69 fields, in this order: `response_id`, `schema_version`, `started_at`, `finished_at`, `R1..R8`, `I1..I8`, `A1..A8`, `S1..S8`, `E1..E8`, `C1..C8`, `attention_check`, `attention_passed`, `score_R..score_C`, `holland_code`, `time_screen_1..time_screen_6`, `time_total_ms`, `user_agent_is_mobile`.
+Screen 7 "Your course": course (text), university type, year, how you got into the course (KUCCPS placed / KUCCPS then elsewhere / direct / not sure), switched course?. Screen 8 "A bit about you": satisfaction 1-5, would choose again, gender, age band.
+
+Follow-ups appear inline under their question: route "KUCCPS placed" asks if it was the first choice (required); "KUCCPS then elsewhere" asks which course KUCCPS placed you in (optional, with an "I don't remember" tick); "switched course = Yes" asks which course you started in (optional). Changing an answer clears any follow-up that is now hidden.
+
+## Response object (schema_version "2")
+
+Flat, 84 fields, in this order: `response_id`, `schema_version`, `started_at`, `finished_at`, `R1..R8`, `I1..I8`, `A1..A8`, `S1..S8`, `E1..E8`, `C1..C8`, `attention_check`, `attention_passed`, `score_R..score_C`, `holland_code`, the 13 background fields below, `time_screen_1..time_screen_8`, `time_total_ms`, `user_agent_is_mobile`.
+
+| Field | Values |
+|---|---|
+| `course` | text, trimmed (max 100) |
+| `uni_type` | `public` / `private` / `not_sure` |
+| `year_of_study` | `year_1` / `year_2` / `year_3` / `year_4` / `year_5_plus` / `graduated_2y` |
+| `admission_route` | `kuccps_placed` / `kuccps_elsewhere` / `direct` / `not_sure` |
+| `kuccps_first_choice` | `yes` / `no` / `dont_remember`; `""` unless route is `kuccps_placed` |
+| `kuccps_placed_course` | text; `""` if not shown, left blank, or "I don't remember" ticked |
+| `kuccps_placed_dont_remember` | `yes` / `no` when shown (route `kuccps_elsewhere`); `""` when not shown |
+| `switched_course` | `yes` / `no` |
+| `original_course` | text; `""` if not shown or left blank |
+| `satisfaction` | integer 1-5 |
+| `choose_again` | `yes` / `not_sure` / `no` |
+| `gender` | `female` / `male` / `prefer_not_to_say` |
+| `age_band` | `18_20` / `21_23` / `24_26` / `27_plus` / `prefer_not_to_say` (underscores: Sheets would turn "18-20" into a date) |
+
+**`""` means "this question was not shown"** (or, for an optional text box, "shown but left blank"). It is never a real answer. Hidden follow-ups are cleared whenever their parent answer changes, so a stale answer can't reach the response.
 
 ## To do before going live
 
@@ -92,4 +126,4 @@ Flat, 69 fields, in this order: `response_id`, `schema_version`, `started_at`, `
 
 ## Screen order
 
-Opening screen ("I'm 18 or older, and I agree" starts the survey; "I'm under 18" exits) -> 6 item screens -> background placeholder (phase 2) -> results.
+Opening screen ("I'm 18 or older, and I agree" starts the survey; "I'm under 18" exits) -> 6 item screens -> background screen 7 -> background screen 8 -> results. The progress bar counts all 8 screens.

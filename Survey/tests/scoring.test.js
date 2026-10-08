@@ -6,6 +6,17 @@ const path = require('path');
 
 const Items = require('../js/items.js');
 const Scoring = require('../js/scoring.js');
+const Background = require('../js/background.js');
+
+// A valid set of background fields (direct entry, so the KUCCPS follow-ups are "" = not shown).
+const BG_FIELDS = Background.buildBackgroundFields(
+  ['course', 'uni_type', 'year_of_study', 'admission_route', 'switched_course', 'satisfaction', 'choose_again', 'gender', 'age_band']
+    .reduce((a, id) => Background.setAnswer(a, id, {
+      course: 'BSc Computer Science', uni_type: 'public', year_of_study: 'year_2', admission_route: 'direct',
+      switched_course: 'no', satisfaction: 4, choose_again: 'yes', gender: 'female', age_band: '21_23'
+    }[id]), {})
+);
+const EIGHT_TIMES = [0, 0, 0, 0, 0, 0, 0, 0];
 
 let passed = 0;
 let failed = 0;
@@ -82,7 +93,7 @@ test('the attention check never changes scores or the code', () => {
   });
   const common = {
     responseId: 'x', startedAt: 'a', finishedAt: 'b', answers: base,
-    screenTimes: [0, 0, 0, 0, 0, 0], totalMs: 0, isMobile: false
+    background: BG_FIELDS, screenTimes: EIGHT_TIMES, totalMs: 0, isMobile: false
   };
   const pass = Scoring.buildResponse(Object.assign({ attentionCheck: 1 }, common));
   const fail = Scoring.buildResponse(Object.assign({ attentionCheck: 5 }, common));
@@ -101,21 +112,44 @@ test('scoreResponses rejects a missing or out-of-range answer', () => {
   assert.throws(() => Scoring.scoreResponses(b));
 });
 
-test('buildResponse is flat with the 69 agreed fields, in a stable order', () => {
+test('buildResponse is flat with the 84 agreed fields (schema "2"), in a stable order', () => {
   const r = Scoring.buildResponse({
     responseId: 'id', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: '2026-01-01T00:10:00.000Z',
-    answers: all(3), attentionCheck: 1, screenTimes: [1, 2, 3, 4, 5, 6], totalMs: 600000, isMobile: true
+    answers: all(3), attentionCheck: 1, background: BG_FIELDS,
+    screenTimes: [1, 2, 3, 4, 5, 6, 7, 8], totalMs: 600000, isMobile: true
   });
   const keys = Object.keys(r);
-  assert.strictEqual(keys.length, 69);
+  assert.strictEqual(keys.length, 84);
   assert.deepStrictEqual(keys.slice(0, 5), ['response_id', 'schema_version', 'started_at', 'finished_at', 'R1']);
   assert.strictEqual(keys[51], 'C8'); // R1..C8 occupy indices 4..51
   assert.strictEqual(keys[52], 'attention_check');
+  assert.strictEqual(keys[53], 'attention_passed');
+  assert.deepStrictEqual(keys.slice(54, 60), ['score_R', 'score_I', 'score_A', 'score_S', 'score_E', 'score_C']);
+  assert.strictEqual(keys[60], 'holland_code');
+  assert.deepStrictEqual(keys.slice(61, 74), Background.FIELD_ORDER); // the 13 background fields
+  assert.deepStrictEqual(keys.slice(74), [
+    'time_screen_1', 'time_screen_2', 'time_screen_3', 'time_screen_4', 'time_screen_5', 'time_screen_6',
+    'time_screen_7', 'time_screen_8', 'time_total_ms', 'user_agent_is_mobile'
+  ]);
   keys.forEach((k) => assert.notStrictEqual(typeof r[k], 'object'));
-  assert.strictEqual(r.schema_version, '1');
+  assert.strictEqual(r.schema_version, '2');
   assert.strictEqual(r.score_R, 24);
+  assert.strictEqual(r.course, 'BSc Computer Science');
+  assert.strictEqual(r.kuccps_first_choice, '');
   assert.strictEqual(r.time_screen_6, 6);
+  assert.strictEqual(r.time_screen_7, 7);
+  assert.strictEqual(r.time_screen_8, 8);
   assert.strictEqual(r.user_agent_is_mobile, true);
+});
+
+test('buildResponse refuses missing background fields or the wrong number of screen times', () => {
+  const ok = {
+    responseId: 'id', startedAt: 'a', finishedAt: 'b', answers: all(3), attentionCheck: 1,
+    background: BG_FIELDS, screenTimes: EIGHT_TIMES, totalMs: 0, isMobile: false
+  };
+  assert.doesNotThrow(() => Scoring.buildResponse(ok));
+  assert.throws(() => Scoring.buildResponse(Object.assign({}, ok, { background: undefined })));
+  assert.throws(() => Scoring.buildResponse(Object.assign({}, ok, { screenTimes: [0, 0, 0, 0, 0, 0] })));
 });
 
 console.log('\nItems and screens');

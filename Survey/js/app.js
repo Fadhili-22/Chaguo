@@ -1,6 +1,10 @@
 /*
  * Screen flow, state, rendering and timings. All survey state lives in the single `state` object.
- * Scoring is in scoring.js (pure functions); item data is in items.js.
+ * Scoring is in scoring.js and the background questions' branching/validation is in background.js
+ * (both pure functions); item data is in items.js.
+ *
+ * Survey screens 1-6 are the item screens; screens 7 and 8 are the two background screens
+ * (state.screen === 'background', state.bgScreen === 7 or 8).
  */
 (function () {
   'use strict';
@@ -8,12 +12,17 @@
   // Replace with the live survey address before sharing (used in the WhatsApp message).
   var SURVEY_URL = 'https://SURVEY_URL_PLACEHOLDER';
 
-  var STORAGE_KEY = 'chaguo_survey_state_v1';
+  var STORAGE_KEY = 'chaguo_survey_state_v2';
   var UNDERAGE_KEY = 'chaguo_survey_underage';
   var RESTORABLE_SCREENS = ['items', 'background']; // the opening screen is never restored: it is where consent happens
 
   var Items = window.ChaguoItems;
   var Scoring = window.ChaguoScoring;
+  var Background = window.ChaguoBackground;
+
+  var FIRST_BG_SCREEN = Background.SCREENS[0]; // 7
+  var TOTAL_SCREENS = Scoring.TIMED_SCREENS;   // 8
+  var BG_TITLES = { 7: 'Your course', 8: 'A bit about you' };
 
   var LETTERS = {
     R: { name: 'Realistic', blurb: 'You tend to enjoy practical, hands-on work: building, fixing and operating tools or machines.' },
@@ -36,10 +45,15 @@
     startedAtMs: null,      // set when the respondent presses the 18+/agree button
     answers: {},            // R1..C8 -> 1..5
     attentionCheck: null,   // 1..5, kept apart from answers so it can never be scored
-    screenTimes: [0, 0, 0, 0, 0, 0], // ms per item screen, accumulated across back/forth
-    enteredAt: null,        // when the current item screen was shown (not persisted)
+    bgScreen: FIRST_BG_SCREEN, // 7 | 8, used when screen === 'background'
+    bg: {},                 // background answers, keyed by response field name (see background.js)
+    screenTimes: [0, 0, 0, 0, 0, 0, 0, 0], // ms per screen (1-8), accumulated across back/forth
+    enteredAt: null,        // when the current timed screen was shown (not persisted)
     response: null          // the finished response object (not persisted)
   };
+
+  // Background questions the respondent has been told are missing (highlighted until answered).
+  var flagged = [];
 
   // ---- Small helpers ----------------------------------------------------------------------
 
@@ -79,17 +93,22 @@
     if (id === Items.ATTENTION_CHECK.id) state.attentionCheck = value;
     else state.answers[id] = value;
   }
-  function answeredCount() {
-    return Object.keys(state.answers).length;
-  }
 
   // ---- Timing -----------------------------------------------------------------------------
 
-  // Add the time spent on the current item screen so far, then restart the clock.
+  // The survey screen number (1-8) being shown, or null on screens that aren't timed.
+  function currentScreenNumber() {
+    if (state.screen === 'items') return state.itemScreen;
+    if (state.screen === 'background') return state.bgScreen;
+    return null;
+  }
+
+  // Add the time spent on the current timed screen so far, then restart the clock.
   function flushTime() {
-    if (state.screen === 'items' && state.enteredAt !== null) {
+    var n = currentScreenNumber();
+    if (n !== null && state.enteredAt !== null) {
       var now = Date.now();
-      state.screenTimes[state.itemScreen - 1] += now - state.enteredAt;
+      state.screenTimes[n - 1] += now - state.enteredAt;
       state.enteredAt = now;
     }
   }
@@ -106,6 +125,8 @@
       startedAtMs: state.startedAtMs,
       answers: state.answers,
       attentionCheck: state.attentionCheck,
+      bgScreen: state.bgScreen,
+      bg: state.bg,
       screenTimes: state.screenTimes
     }));
   }
@@ -121,26 +142,32 @@
       Items.ITEM_IDS.forEach(function (id) {
         if (Scoring.isValidAnswer(s.answers && s.answers[id])) answers[id] = s.answers[id];
       });
-      var times = Array.isArray(s.screenTimes) && s.screenTimes.length === Items.SCREEN_COUNT &&
+      var times = Array.isArray(s.screenTimes) && s.screenTimes.length === TOTAL_SCREENS &&
         s.screenTimes.every(function (t) { return typeof t === 'number' && t >= 0; });
       state.screen = s.screen;
       state.itemScreen = Number.isInteger(s.itemScreen) && s.itemScreen >= 1 && s.itemScreen <= Items.SCREEN_COUNT ? s.itemScreen : 1;
+      state.bgScreen = Background.SCREENS.indexOf(s.bgScreen) !== -1 ? s.bgScreen : FIRST_BG_SCREEN;
       state.responseId = s.responseId;
       state.startedAtMs = s.startedAtMs;
       state.answers = answers;
       state.attentionCheck = Scoring.isValidAnswer(s.attentionCheck) ? s.attentionCheck : null;
-      state.screenTimes = times ? s.screenTimes : [0, 0, 0, 0, 0, 0];
-      state.enteredAt = state.screen === 'items' ? Date.now() : null;
+      // pruneHidden drops hidden and invalid values, so nothing stale comes back from storage
+      state.bg = Background.pruneHidden(s.bg && typeof s.bg === 'object' ? s.bg : {});
+      state.screenTimes = times ? s.screenTimes : [0, 0, 0, 0, 0, 0, 0, 0];
+      state.enteredAt = currentScreenNumber() !== null ? Date.now() : null;
     } catch (e) { /* corrupt data: start fresh */ }
   }
 
   // ---- Navigation -------------------------------------------------------------------------
 
-  function goTo(screen, itemScreen) {
+  // `n` is the item screen (1-6) for 'items' or the background screen (7 or 8) for 'background'.
+  function goTo(screen, n) {
     flushTime(); // closes the clock on the screen we're leaving
     state.screen = screen;
-    if (itemScreen) state.itemScreen = itemScreen;
-    state.enteredAt = screen === 'items' ? Date.now() : null;
+    if (screen === 'items' && n) state.itemScreen = n;
+    if (screen === 'background' && n) state.bgScreen = n;
+    flagged = [];
+    state.enteredAt = currentScreenNumber() !== null ? Date.now() : null;
     persist();
     show();
   }
@@ -151,6 +178,7 @@
       el.hidden = el.getAttribute('data-screen') !== state.screen;
     });
     if (state.screen === 'items') renderItemScreen();
+    if (state.screen === 'background') renderBackgroundScreen();
     if (state.screen === 'results') renderResults();
     var section = $('screen-' + state.screen);
     var heading = section.querySelector('h1');
@@ -203,7 +231,7 @@
 
   function renderItemScreen() {
     var n = state.itemScreen;
-    $('items-progress-label').textContent = 'Screen ' + n + ' of ' + Items.SCREEN_COUNT;
+    $('items-progress-label').textContent = 'Screen ' + n + ' of ' + TOTAL_SCREENS;
     var list = $('items-list');
     list.textContent = '';
     Items.getScreenItems(n).forEach(function (item) { list.appendChild(buildItem(item)); });
@@ -212,10 +240,22 @@
     updateProgress();
   }
 
+  // Progress bar for both kinds of screen: finished screens plus the answered share of this one, out of 8.
   function updateProgress() {
-    var done = answeredCount();
-    $('items-progress').setAttribute('aria-valuenow', String(done));
-    $('items-progress-fill').style.width = (done / Items.ITEMS.length * 100) + '%';
+    var n = currentScreenNumber();
+    if (n === null) return;
+    var share;
+    if (state.screen === 'items') {
+      var items = Items.getScreenItems(n);
+      share = items.filter(function (it) { return getAnswer(it.id) != null; }).length / items.length;
+    } else {
+      var p = Background.screenProgress(n, state.bg);
+      share = p.total ? p.answered / p.total : 0;
+    }
+    var pct = Math.round((n - 1 + share) / TOTAL_SCREENS * 100);
+    var prefix = state.screen === 'items' ? 'items' : 'background';
+    $(prefix + '-progress').setAttribute('aria-valuenow', String(pct));
+    $(prefix + '-progress-fill').style.width = pct + '%';
   }
 
   function missingOnScreen() {
@@ -260,11 +300,193 @@
     var missing = missingOnScreen();
     if (missing.length) { showMissing(missing); return; }
     if (state.itemScreen < Items.SCREEN_COUNT) goTo('items', state.itemScreen + 1);
-    else goTo('background');
+    else goTo('background', FIRST_BG_SCREEN);
   }
 
   function onBack() {
     if (state.itemScreen > 1) goTo('items', state.itemScreen - 1);
+  }
+
+  // ---- Background screens (7 and 8) -------------------------------------------------------
+  // What is shown is decided by background.js; this code only draws it and passes answers back.
+
+  function buildOption(q, option) {
+    var label = document.createElement('label');
+    label.className = 'option';
+    var input = document.createElement('input');
+    input.type = 'radio';
+    input.name = q.id;
+    input.value = String(option.value);
+    input.checked = state.bg[q.id] === option.value;
+    var text = document.createElement('span');
+    text.className = 'option-text';
+    if (q.showNumbers) {
+      var num = document.createElement('span');
+      num.className = 'option-num';
+      num.textContent = String(option.value);
+      text.appendChild(num);
+    }
+    text.appendChild(document.createTextNode(option.label));
+    label.appendChild(input);
+    label.appendChild(text);
+    return label;
+  }
+
+  function buildQuestion(q, withCheckbox) {
+    var box = document.createElement(q.type === 'radio' ? 'fieldset' : 'div');
+    box.className = 'item' + (q.followUp ? ' followup' : '');
+    box.setAttribute('data-id', q.id);
+
+    var title;
+    if (q.type === 'radio') {
+      title = document.createElement('legend');
+    } else {
+      title = document.createElement('label');
+      title.className = 'item-label';
+      title.setAttribute('for', 'bg-' + q.id);
+    }
+    title.appendChild(document.createTextNode(q.label));
+    if (!q.required) {
+      var opt = document.createElement('span');
+      opt.className = 'optional';
+      opt.textContent = ' (optional)';
+      title.appendChild(opt);
+    }
+    box.appendChild(title);
+
+    if (q.type === 'radio') {
+      var group = document.createElement('div');
+      group.className = 'options';
+      q.options.forEach(function (o) { group.appendChild(buildOption(q, o)); });
+      box.appendChild(group);
+    } else {
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.id = 'bg-' + q.id;
+      input.name = q.id;
+      input.className = 'text-input';
+      input.maxLength = q.maxLength;
+      input.autocomplete = 'off';
+      if (q.placeholder) input.placeholder = q.placeholder;
+      input.value = state.bg[q.id] || '';
+      if (withCheckbox && state.bg[withCheckbox.id] === 'yes') input.disabled = true;
+      box.appendChild(input);
+      if (withCheckbox) {
+        var row = document.createElement('label');
+        row.className = 'check';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.name = withCheckbox.id;
+        cb.checked = state.bg[withCheckbox.id] === 'yes';
+        row.appendChild(cb);
+        row.appendChild(document.createTextNode(withCheckbox.label));
+        box.appendChild(row);
+      }
+    }
+
+    var err = document.createElement('p');
+    err.className = 'item-error';
+    err.textContent = q.type === 'radio' ? 'Please choose an answer for this one.' : 'Please type your answer here.';
+    box.appendChild(err);
+    return box;
+  }
+
+  function renderQuestions() {
+    var list = $('background-list');
+    list.textContent = '';
+    var shown = Background.visibleQuestions(state.bg, state.bgScreen);
+    shown.forEach(function (q) {
+      if (q.attachTo) return; // drawn inside its parent question
+      var attached = shown.filter(function (x) { return x.attachTo === q.id; })[0];
+      var el = buildQuestion(q, attached);
+      if (flagged.indexOf(q.id) !== -1) el.classList.add('is-missing');
+      list.appendChild(el);
+    });
+    refreshBackgroundSummary();
+    updateProgress();
+  }
+
+  function renderBackgroundScreen() {
+    $('background-progress-label').textContent = 'Screen ' + state.bgScreen + ' of ' + TOTAL_SCREENS;
+    $('background-title').textContent = BG_TITLES[state.bgScreen];
+    $('background-back').hidden = false;
+    $('background-next').textContent = state.bgScreen === TOTAL_SCREENS ? 'See my results' : 'Next';
+    renderQuestions();
+  }
+
+  function refreshBackgroundSummary() {
+    var summary = $('background-summary');
+    var n = flagged.length;
+    if (n > 0) {
+      summary.textContent = n === 1 ? '1 question still needs an answer.' : n + ' questions still need an answer.';
+      summary.hidden = false;
+    } else {
+      summary.hidden = true;
+    }
+  }
+
+  function unflag(id) {
+    flagged = flagged.filter(function (f) { return f !== id; });
+    var el = document.querySelector('#background-list .item[data-id="' + id + '"]');
+    if (el) el.classList.remove('is-missing');
+    refreshBackgroundSummary();
+  }
+
+  // Radios and the checkbox can change which questions are visible, so redraw and put focus back.
+  function onBackgroundChange(e) {
+    var input = e.target;
+    if (!input || (input.type !== 'radio' && input.type !== 'checkbox')) return;
+    var q = Background.QUESTIONS.filter(function (x) { return x.id === input.name; })[0];
+    if (!q) return;
+    var value;
+    if (input.type === 'checkbox') {
+      value = input.checked ? 'yes' : 'no';
+    } else {
+      value = q.options.filter(function (o) { return String(o.value) === input.value; })[0].value;
+    }
+    state.bg = Background.setAnswer(state.bg, input.name, value);
+    flagged = flagged.filter(function (f) { return f !== q.id && Background.visibleQuestions(state.bg).some(function (v) { return v.id === f; }); });
+    renderQuestions();
+    var again = input.type === 'checkbox'
+      ? document.querySelector('#background-list input[name="' + input.name + '"]')
+      : document.querySelector('#background-list input[name="' + input.name + '"][value="' + input.value + '"]');
+    if (again) again.focus({ preventScroll: true });
+    persist();
+  }
+
+  // Typing never changes which questions are visible, so no redraw (it would steal focus).
+  function onBackgroundInput(e) {
+    var input = e.target;
+    if (!input || input.type !== 'text') return;
+    state.bg = Background.setAnswer(state.bg, input.name, input.value);
+    if (Background.validateScreen(state.bgScreen, state.bg).missing.indexOf(input.name) === -1) unflag(input.name);
+    updateProgress();
+    persist();
+  }
+
+  function showBackgroundMissing(missing) {
+    flagged = missing.slice();
+    renderQuestions();
+    var first = document.querySelector('#background-list .item.is-missing input');
+    if (first) {
+      first.scrollIntoView({ block: 'center' });
+      first.focus();
+    }
+  }
+
+  function onBackgroundNext() {
+    var v = Background.validateScreen(state.bgScreen, state.bg);
+    if (!v.valid) { showBackgroundMissing(v.missing); return; }
+    if (state.bgScreen < TOTAL_SCREENS) { goTo('background', state.bgScreen + 1); return; }
+    // Last screen: double-check the earlier one too (a restored session could be incomplete).
+    var earlier = Background.validateScreen(FIRST_BG_SCREEN, state.bg);
+    if (!earlier.valid) { goTo('background', FIRST_BG_SCREEN); showBackgroundMissing(earlier.missing); return; }
+    finishSurvey();
+  }
+
+  function onBackgroundBack() {
+    if (state.bgScreen > FIRST_BG_SCREEN) goTo('background', state.bgScreen - 1);
+    else goTo('items', Items.SCREEN_COUNT);
   }
 
   // ---- Finishing and results --------------------------------------------------------------
@@ -279,6 +501,7 @@
       finishedAt: new Date(finishedMs).toISOString(),
       answers: state.answers,
       attentionCheck: state.attentionCheck,
+      background: Background.buildBackgroundFields(state.bg),
       screenTimes: state.screenTimes,
       totalMs: finishedMs - state.startedAtMs,
       isMobile: isMobile()
@@ -348,6 +571,7 @@
   function debugFillAndFinish() {
     Items.ITEMS.forEach(function (it) { state.answers[it.id] = 1 + Math.floor(Math.random() * 5); });
     state.attentionCheck = debugParam === 'fail' ? 5 : Items.ATTENTION_CHECK.passValue;
+    state.bg = Background.randomAnswers(Math.random); // random admission route, so branches get exercised
     if (state.startedAtMs === null) {
       state.startedAtMs = Date.now();
       state.responseId = makeUuid();
@@ -378,8 +602,10 @@
     $('items-list').addEventListener('change', onItemChange);
     $('items-next').addEventListener('click', onNext);
     $('items-back').addEventListener('click', onBack);
-    $('background-back').addEventListener('click', function () { goTo('items', Items.SCREEN_COUNT); });
-    $('background-continue').addEventListener('click', finishSurvey);
+    $('background-list').addEventListener('change', onBackgroundChange);
+    $('background-list').addEventListener('input', onBackgroundInput);
+    $('background-back').addEventListener('click', onBackgroundBack);
+    $('background-next').addEventListener('click', onBackgroundNext);
 
     if (DEBUG_ON) {
       $('debug-bar').hidden = false;

@@ -8,7 +8,8 @@
   var Items = (typeof module !== 'undefined' && module.exports) ? require('./items.js') : root.ChaguoItems;
 
   var TYPES = Items.TYPES; // R-I-A-S-E-C: also the documented tie-break order
-  var SCHEMA_VERSION = '1';
+  var SCHEMA_VERSION = '2';
+  var TIMED_SCREENS = Items.SCREEN_COUNT + 2; // 6 item screens + 2 background screens
 
   function isValidAnswer(v) {
     return Number.isInteger(v) && v >= 1 && v <= 5;
@@ -51,8 +52,13 @@
 
   // The flat, spreadsheet-friendly object phase 3 will send to Google Sheets.
   // opts: responseId, startedAt (ISO), finishedAt (ISO), answers {R1..C8}, attentionCheck,
-  //       screenTimes [6 x ms], totalMs, isMobile
+  //       background (the 13 fields from ChaguoBackground.buildBackgroundFields; "" = question not shown),
+  //       screenTimes [8 x ms: 6 item screens + 2 background screens], totalMs, isMobile
   function buildResponse(opts) {
+    if (!opts.background || typeof opts.background !== 'object') throw new Error('Missing background fields');
+    if (!Array.isArray(opts.screenTimes) || opts.screenTimes.length !== TIMED_SCREENS) {
+      throw new Error('Expected ' + TIMED_SCREENS + ' screen times');
+    }
     var scores = scoreResponses(opts.answers);
     var r = {
       response_id: opts.responseId,
@@ -65,7 +71,8 @@
     r.attention_passed = opts.attentionCheck === Items.ATTENTION_CHECK.passValue;
     TYPES.forEach(function (t) { r['score_' + t] = scores[t]; });
     r.holland_code = hollandCode(scores).code;
-    for (var i = 0; i < Items.SCREEN_COUNT; i++) r['time_screen_' + (i + 1)] = opts.screenTimes[i];
+    Object.keys(opts.background).forEach(function (k) { r[k] = opts.background[k]; });
+    for (var i = 0; i < TIMED_SCREENS; i++) r['time_screen_' + (i + 1)] = opts.screenTimes[i];
     r.time_total_ms = opts.totalMs;
     r.user_agent_is_mobile = !!opts.isMobile;
     return r;
@@ -74,6 +81,7 @@
   root.ChaguoScoring = {
     TYPES: TYPES,
     SCHEMA_VERSION: SCHEMA_VERSION,
+    TIMED_SCREENS: TIMED_SCREENS,
     isValidAnswer: isValidAnswer,
     scoreResponses: scoreResponses,
     rankTypes: rankTypes,

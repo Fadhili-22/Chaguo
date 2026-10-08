@@ -51,8 +51,8 @@
     <!-- 2. The 48 items, six screens of eight. Contents are rendered by js/app.js -->
     <section id="screen-items" data-screen="items" hidden>
       <p class="eyebrow" id="items-progress-label"></p>
-      <div class="progress" id="items-progress" role="progressbar" aria-label="Questions answered"
-           aria-valuemin="0" aria-valuemax="48" aria-valuenow="0">
+      <div class="progress" id="items-progress" role="progressbar" aria-label="Survey progress"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="progress-fill" id="items-progress-fill"></div>
       </div>
       <h1 tabindex="-1">How much would you enjoy these activities?</h1>
@@ -66,13 +66,23 @@
       </div>
     </section>
 
-    <!-- 4. Placeholder: phase 2 replaces this with the background questions -->
+    <!--
+      3. Background questions: screen 7 "Your course" and screen 8 "A bit about you".
+      One section; js/app.js renders the questions listed in js/background.js for the current screen.
+      DRAFT COPY / WORDING - question wording needs the project owner's review.
+    -->
     <section id="screen-background" data-screen="background" hidden>
-      <h1 tabindex="-1">Background questions coming in phase 2</h1>
-      <p>This is a placeholder. Press Continue to see your results.</p>
+      <p class="eyebrow" id="background-progress-label"></p>
+      <div class="progress" id="background-progress" role="progressbar" aria-label="Survey progress"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="progress-fill" id="background-progress-fill"></div>
+      </div>
+      <h1 tabindex="-1" id="background-title"></h1>
+      <div id="background-list"></div>
+      <p class="callout callout-error" id="background-summary" role="alert" hidden></p>
       <div class="actions actions-row">
         <button type="button" class="btn btn-secondary" id="background-back">Back</button>
-        <button type="button" class="btn" id="background-continue">Continue</button>
+        <button type="button" class="btn" id="background-next">Next</button>
       </div>
     </section>
 
@@ -102,6 +112,7 @@
 
   <script src="js/items.js"></script>
   <script src="js/scoring.js"></script>
+  <script src="js/background.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

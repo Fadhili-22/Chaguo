@@ -14,6 +14,7 @@ Research contact (used on the survey consent screen): njenga.munyua@strathmore.e
 - Fadhili is learning as he builds. Explain decisions briefly in plain language, and prefer simple, defensible solutions over clever ones. No frameworks or build steps unless a phase asks for them.
 - At the end of each phase: summarise what was built, how to test it, and what is still open. Then update the **Progress** section at the bottom of this file.
 - Only write inside the folder the current task is about.
+- Never add "Co-Authored-By" or "Generated with Claude Code" lines to commit messages or PR descriptions. Commit messages contain only the message itself.
 
 ## Folder layout
 
@@ -26,7 +27,7 @@ Chaguo/
 │   ├── notebooks/
 │   ├── notes/       ← see here for what analysis has been done so far
 │   └── processed/
-├── Survey/          ← anonymous Kenyan university-student survey (static site → GitHub Pages); phase 1 built
+├── Survey/          ← anonymous Kenyan university-student survey (static site → GitHub Pages); phases 1–2 built
 └── Web-App/         ← the Chaguo product itself (not started; empty)
 ```
 
@@ -63,11 +64,16 @@ Static site (plain HTML/CSS/JS) on GitHub Pages; responses go to a Google Sheet 
 Flow:
 1. Opening screen (one screen): short friendly intro (what Chaguo is, why current university students, what you get), a compact one-line bulleted "Before you start" list (anonymous, voluntary, about 7 to 10 minutes, answers used for research and to train Chaguo's model, contact email above), and two buttons. "I'm 18 or older, and I agree — start" counts as both age confirmation and consent and starts the timing; "I'm under 18" exits politely, nothing recorded (sessionStorage flag, so a refresh goes straight to the exit screen).
 2. 48 RIASEC items, interleaved R1, I1, A1, S1, E1, C1, R2, I2 … C8, across 6 screens of 8. One attention-check item on screen 4.
-3. Background questions (phase 2) with KUCCPS branching:
-   - placed by KUCCPS → was it your first choice?
-   - applied via KUCCPS but went elsewhere → which cluster were you placed in?
-   - direct entry
-   Then: switched course?, satisfaction 1–5, would you choose this course again?, gender, age band.
+3. Background questions (phase 2, built) with KUCCPS branching, on two screens (7 "Your course", 8 "A bit about you"); the progress bar covers all 8 screens. Logic lives in `Survey/js/background.js` (pure functions, tested in Node):
+   - Screen 7: course (free text, required, max 100), university type (public/private/not sure), year of study, how you got into the course, switched course?
+   - Admission route branching (follow-up shown inline, hidden answers are cleared when the route changes):
+     - placed by KUCCPS → "Was this course your first choice on your KUCCPS application?" (required)
+     - applied via KUCCPS but went elsewhere → "What course did KUCCPS place you in?" (free text, optional, with an "I don't remember" checkbox)
+     - applied directly, or not sure → no follow-up
+   - Switched course = Yes → "What course did you start in?" (optional)
+   - Screen 8: satisfaction 1–5 (all five labelled), would you choose this course again?, gender, age band.
+   - Free text is trimmed only; course names are not corrected or mapped in the survey (mapping to clusters happens in analysis).
+   - Response schema_version "2": 84 flat fields. Questions not shown are `""` (never a real answer). Field list and machine values are in `Survey/README.md`.
 4. Results screen: RIASEC scores, Holland code, WhatsApp share.
 Timings are recorded (per screen and total).
 
@@ -94,8 +100,8 @@ Branding is applied in survey phase 5; earlier phases keep styling minimal but u
 - [x] Brand and logo decided
 - [x] Open Psychometrics dataset downloaded and initial processing started (`Dataset/`)
 - [x] Survey phase 1 — scaffold, consent, items, scoring/results (built; opening-screen copy is a DRAFT awaiting review; consent wording to be updated in phase 3 to say answers are saved as you go)
-- [ ] Survey phase 2 — background questions + branching
-- [ ] Survey phase 3 — Sheet + Apps Script
+- [x] Survey phase 2 — background questions + branching (built, both test suites pass; question wording is a DRAFT awaiting review; not yet committed, awaiting manual test)
+- [ ] Survey phase 3 — Sheet + Apps Script. Don't forget: **neutralise spreadsheet formulas** in free-text fields (`course`, `kuccps_placed_course`, `original_course`): Google Sheets treats a value starting with `=`, `+`, `-` or `@` as a formula, so prefix such values with `'` (or similar) when saving. Also update the consent wording to say answers are saved as you go.
 - [ ] Survey phase 4 — quality checks + deploy
 - [ ] Survey phase 5 — branding
 - [ ] Confirm the 14-cluster list
