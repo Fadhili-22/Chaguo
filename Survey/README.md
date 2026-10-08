@@ -1,7 +1,7 @@
-# Chaguo survey (phases 1-2)
+# Chaguo survey (phases 1-3)
 
 Static survey in plain HTML, CSS and vanilla JS. No build step, no libraries, no analytics.
-Covers: one opening screen (intro, age confirmation and consent), 48 RIASEC items (screens 1-6), two background screens with KUCCPS branching (screens 7-8), and a results screen. **Nothing is saved anywhere yet** (phase 3).
+Covers: one opening screen (intro, age confirmation and consent), 48 RIASEC items (screens 1-6), two background screens with KUCCPS branching (screens 7-8), a results screen, and saving to a Google Sheet through a Google Apps Script web app (set it up with `apps-script/SETUP.md`). With `SURVEY_ENDPOINT` empty in `js/config.js`, nothing is saved: snapshots are printed to the browser console instead.
 
 ## Run it locally (Windows)
 
@@ -22,11 +22,11 @@ To try it on your phone, put the phone on the same Wi-Fi, run the server, and op
 
 Add `?debug=1` to the address (e.g. `index.html?debug=1`). A button appears that fills all 48 items with random answers, answers the attention check correctly (Dislike), fills both background screens with valid random answers (random admission route, so different branches get exercised), and jumps to results. Use `?debug=fail` to answer the attention check wrongly instead. Without the flag the button does not exist.
 
-The finished response object is printed to the browser console (F12 -> Console) when results are reached.
+The finished response is printed to the browser console (F12 -> Console) when results are reached. With `SURVEY_ENDPOINT` empty, every snapshot is printed there too (see Saving). Debug runs are marked `is_test` = `yes`.
 
 ## Run the tests
 
-There are three test files. Run them from the `Survey` folder.
+There are six test files. Run them from the `Survey` folder.
 
 **1. Scoring and items** (pure logic; needs Node.js only):
 
@@ -58,19 +58,50 @@ What it needs:
 
 It opens a throwaway browser profile in your temp folder and deletes it afterwards. Screenshots go to `tests/screenshots/`, which is git-ignored. The script exits with a non-zero code if any check fails.
 
+**4. Snapshots** (pure logic; needs Node.js only):
+
+```powershell
+node tests/snapshot.test.js
+```
+
+The 89-field snapshot: same keys in the same order for partial and complete, `""` for unknown values, growth over the screens, `is_test` rules.
+
+**5. Apps Script** (pure logic; needs Node.js only):
+
+```powershell
+node tests/apps-script.test.js
+```
+
+Loads `apps-script/Code.gs` in Node and tests validation, cleaning and writing with a fake sheet: bad UUID, wrong schema, unknown keys, out-of-range values, bad choices, overlong text, formula protection, header creation and header mismatch. It also checks that the script's columns and allowed values match the survey's.
+
+**6. Saving in a browser** (same requirements as test 3):
+
+```powershell
+node tests/saving.test.mjs
+```
+
+Runs the survey against a small local mock endpoint (the survey is copied to a temp folder with `config.js` pointed at the mock). Checks nothing is sent before consent or for under-18s, one full snapshot per screen plus "complete", retry and queue behaviour, the final-failure message and button, the reference code, both `SEND_MODE`s, and the close-page beacon.
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | `index.html` | All screens; one visible at a time |
 | `css/styles.css` | Styling; every colour, font and size is a variable on `:root` |
+| `js/config.js` | The settings you edit: `SURVEY_ENDPOINT`, `SEND_MODE`, `CONSENT_VERSION` |
 | `js/items.js` | The 48 items (exact codebook wording), attention check, screen layout |
 | `js/scoring.js` | Pure functions: scores, Holland code, tie rule, response object |
 | `js/background.js` | Pure functions: background questions, KUCCPS branching, validation, the 13 background response fields |
-| `js/app.js` | State, screen flow, timings, rendering, sessionStorage, debug helper |
+| `js/snapshot.js` | Pure functions: the 89-field snapshot (partial or complete), `is_test` |
+| `js/sender.js` | Sending, the one-slot retry queue, the close-page beacon |
+| `js/app.js` | State, screen flow, timings, rendering, sessionStorage, debug helper, when to save |
+| `apps-script/Code.gs` | The Google Apps Script web app (validation, cleaning, append to the Sheet) |
+| `apps-script/SETUP.md` | Click-by-click Sheet and deployment guide |
 | `tests/scoring.test.js` | Plain-Node tests for items, screens and scoring |
 | `tests/background.test.js` | Plain-Node tests for the background questions |
 | `tests/browser.test.mjs` | Headless-browser test of the whole flow |
+| `tests/snapshot.test.js`, `tests/apps-script.test.js` | Plain-Node tests for snapshots and the Apps Script |
+| `tests/saving.test.mjs`, `tests/lib/cdp.mjs` | Headless-browser test of saving against a mock endpoint, and its browser helper |
 | `assets/` | Logo files (kept byte-identical with `Web-App/assets/`) |
 
 ## Scoring rules
@@ -96,9 +127,20 @@ Screen 7 "Your course": course (text), university type, year, how you got into t
 
 Follow-ups appear inline under their question: route "KUCCPS placed" asks if it was the first choice (required); "KUCCPS then elsewhere" asks which course KUCCPS placed you in (optional, with an "I don't remember" tick); "switched course = Yes" asks which course you started in (optional). Changing an answer clears any follow-up that is now hidden.
 
-## Response object (schema_version "2")
+## Response object (schema_version "3")
 
-Flat, 84 fields, in this order: `response_id`, `schema_version`, `started_at`, `finished_at`, `R1..R8`, `I1..I8`, `A1..A8`, `S1..S8`, `E1..E8`, `C1..C8`, `attention_check`, `attention_passed`, `score_R..score_C`, `holland_code`, the 13 background fields below, `time_screen_1..time_screen_8`, `time_total_ms`, `user_agent_is_mobile`.
+Flat. 84 core fields, in this order: `response_id`, `schema_version`, `started_at`, `finished_at`, `R1..R8`, `I1..I8`, `A1..A8`, `S1..S8`, `E1..E8`, `C1..C8`, `attention_check`, `attention_passed`, `score_R..score_C`, `holland_code`, the 13 background fields below, `time_screen_1..time_screen_8`, `time_total_ms`, `user_agent_is_mobile`. Schema 3 adds 5 sending fields after them (89 from the browser), and the server adds `received_at` (90 columns in the Sheet):
+
+| Field | Values |
+|---|---|
+| `stage` | `screen_1` ... `screen_8` (last completed screen) / `complete` |
+| `is_complete` | `yes` / `no` |
+| `client_sent_at` | ISO time of this send (respondent's clock) |
+| `consent_version` | from `CONSENT_VERSION` in `js/config.js`, e.g. `2026-10-v1` |
+| `is_test` | `yes` when `?debug` is on or the page runs from `file://`, localhost or a LAN address; otherwise `no` |
+| `received_at` | added by the server (UTC); not sent by the browser |
+
+In a snapshot sent mid-survey anything not known yet is `""` (unanswered items, scores, `holland_code`, `finished_at`, `attention_*`, timings of screens not reached). The 13 background fields:
 
 | Field | Values |
 |---|---|
@@ -118,11 +160,21 @@ Flat, 84 fields, in this order: `response_id`, `schema_version`, `started_at`, `
 
 **`""` means "this question was not shown"** (or, for an optional text box, "shown but left blank"). It is never a real answer. Hidden follow-ups are cleared whenever their parent answer changes, so a stale answer can't reach the response.
 
+## Saving
+
+- **Snapshots, append-only.** After each completed screen (1-8), and on reaching results (`complete`), the page sends the **whole response so far** as one new row. Rows are never updated or deleted, so one respondent has up to 9 rows. **In analysis keep the latest row per `response_id`** (sort by `received_at`, take the last).
+- **Never before consent.** Nothing is sent until "I'm 18 or older, and I agree" is pressed, nothing for under-18s, and nothing until the first screen is complete.
+- **Never blocks.** Sends are fire-and-forget. A failed snapshot waits in a one-slot queue (sessionStorage) and is replaced by the next, newer snapshot; the queue survives a refresh. Results appear as soon as the final snapshot is queued; if the final send fails, a calm message with a "Try saving again" button appears.
+- **Close-page beacon.** If the page is hidden or closed mid-survey with answers not yet sent, they go out with `navigator.sendBeacon`.
+- **Why `text/plain`.** The body is JSON but is sent as `text/plain`, which counts as a "simple" request: the browser skips the CORS preflight (an OPTIONS "may I?" request) that Apps Script cannot answer.
+- **`SEND_MODE`.** `"cors"` (default) reads Google's reply to know a save worked. If rows reach the Sheet but the page reports failure, use `"no-cors"` (a finished request counts as saved). See `apps-script/SETUP.md`, step 8.
+- **Reference code.** The results screen shows the first 8 characters of `response_id` so a respondent can ask for deletion by email.
+
 ## To do before going live
 
 - Set `SURVEY_URL` at the top of `js/app.js` (used in the WhatsApp share text).
-- Review the opening-screen wording in `index.html` (marked DRAFT). Phase 3: update it to say answers are saved as you go (TODO comment in place).
-- Remove the `data-phase1-note` line on the results screen once saving exists (phase 3).
+- Set `SURVEY_ENDPOINT` in `js/config.js` (see `apps-script/SETUP.md`), and test with your real Sheet.
+- Review the opening-screen wording in `index.html` (marked DRAFT). If it changes, bump `CONSENT_VERSION` in `js/config.js`.
 
 ## Screen order
 

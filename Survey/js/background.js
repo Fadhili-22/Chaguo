@@ -233,6 +233,21 @@
     return fields;
   }
 
+  // Same 13 fields as buildBackgroundFields, but for a survey that is not finished: it never throws.
+  // A shown question that has no valid answer yet is "" (not shown is "" too, as always). Once every
+  // required answer is in, the result is identical to buildBackgroundFields (a test checks this).
+  function buildPartialBackgroundFields(answers) {
+    var clean = pruneHidden(answers && typeof answers === 'object' ? answers : {});
+    var fields = {};
+    QUESTIONS.forEach(function (q) {
+      if (!isVisible(q, clean)) { fields[q.id] = ''; return; }
+      if (q.type === 'text') fields[q.id] = trimmed(clean[q.id]);
+      else if (q.type === 'checkbox') fields[q.id] = clean[q.id] === 'yes' ? 'yes' : 'no';
+      else fields[q.id] = isValidOption(q, clean[q.id]) ? clean[q.id] : '';
+    });
+    return fields;
+  }
+
   // Valid random answers for the ?debug helper. `rand` is a function returning a number in [0, 1),
   // e.g. Math.random. The admission route is random, so different branches get exercised.
   var SAMPLE_COURSES = [
@@ -267,6 +282,7 @@
     validateScreen: validateScreen,
     screenProgress: screenProgress,
     buildBackgroundFields: buildBackgroundFields,
+    buildPartialBackgroundFields: buildPartialBackgroundFields,
     randomAnswers: randomAnswers
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.ChaguoBackground;

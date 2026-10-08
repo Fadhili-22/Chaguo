@@ -106,7 +106,7 @@ async function itemsToBackground(url = BASE) {
 }
 const SCREEN7_BASE = [['type', 'course', '  BSc Computer Science  '], ['pick', 'uni_type', 'private'], ['pick', 'year_of_study', 'year_3']];
 const SCREEN8_BASE = [['pick', 'satisfaction', '4'], ['pick', 'choose_again', 'not_sure'], ['pick', 'gender', 'male'], ['pick', 'age_band', '24_26']];
-const BASE_EXPECTED = { schema_version: '2', course: 'BSc Computer Science', uni_type: 'private', year_of_study: 'year_3', satisfaction: 4, choose_again: 'not_sure', gender: 'male', age_band: '24_26' };
+const BASE_EXPECTED = { schema_version: '3', course: 'BSc Computer Science', uni_type: 'private', year_of_study: 'year_3', satisfaction: 4, choose_again: 'not_sure', gender: 'male', age_band: '24_26' };
 
 // One complete run for a branch. `screen7` are the route-specific operations; `expected` the exact fields to see.
 async function fullRun(label, screen7, expected) {
@@ -120,7 +120,7 @@ async function fullRun(label, screen7, expected) {
   const r = await ev(`window.__resp`);
   const want = Object.assign({}, BASE_EXPECTED, expected);
   const wrong = r ? Object.keys(want).filter((k) => r[k] !== want[k]).map((k) => `${k}: got ${JSON.stringify(r[k])}, want ${JSON.stringify(want[k])}`) : ['no response object'];
-  check(`full run ${label}: reaches results, 84 fields, right fields filled and empty`, on8 && done && !!r && Object.keys(r).length === 84 && wrong.length === 0, wrong.join('; '));
+  check(`full run ${label}: reaches results, 89 fields, right fields filled and empty`, on8 && done && !!r && Object.keys(r).length === 89 && wrong.length === 0, wrong.join('; '));
   return r;
 }
 
@@ -147,11 +147,12 @@ check('intro mentions Chaguo, KCSE leavers and the 3-letter code', await ev(`(()
 const EXPECTED_LIST = [
   'Anonymous (no name, email or phone number needed)',
   'Voluntary (you can stop at any time)',
-  'Time-friendly (about 7 to 10 minutes)',"Answers (your interests, course details and satisfaction) are used for research and to train Chaguo's model",
-  'Contact (njenga.munyua@strathmore.edu)'
+  'Time-friendly (about 7 to 10 minutes)',
+  "Answers (your interests, course details and satisfaction) are saved as you go, so if you stop partway, what you've answered is kept. They are used for research and to train Chaguo's model",
+  'Contact (njenga.munyua@strathmore.edu): email us with the reference code shown at the end to have your answers deleted'
 ];
 const listText = await ev(`[...document.querySelectorAll('#screen-start .before-list li')].map(li=>li.textContent)`);
-check('"Before you start" list reads exactly as agreed (five points)', JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST), JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST) ? '' : JSON.stringify(listText));
+check('"Before you start" list reads exactly as agreed (five points; saved as you go + deletion by reference code)', JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST), JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST) ? '' : JSON.stringify(listText));
 check('list uses bullets with a small gap (<= 1.5em indent)', await ev(`(()=>{const l=document.querySelector('#screen-start .before-list'); const cs=getComputedStyle(l); return l.tagName==='UL' && cs.listStyleType==='disc' && parseFloat(cs.paddingLeft) <= 1.5*parseFloat(cs.fontSize);})()`));
 check('"Before you start" is bold; list items are normal weight; main heading and buttons may be bold', await ev(`(()=>{const root=document.getElementById('screen-start'); if(root.querySelector('strong,b,dt')) return false; const w=(el)=>parseInt(getComputedStyle(el).fontWeight,10); if(w(root.querySelector('.before-title'))<600) return false; return [...root.querySelectorAll('*')].every(el=>{ if(el.tagName==='H1'||el.classList.contains('btn')||el.classList.contains('before-title')) return true; return w(el)<=400; });})()`));
 check('time wording: "about 7 to 10 minutes" appears once on the page; no stale "7 minutes"', await ev(`(()=>{const t=document.body.textContent; return t.split('7 to 10 minutes').length===2 && t.split('7 minutes').length===1;})()`));
@@ -302,11 +303,11 @@ await sleep(40);
 await click('#background-next');
 check('-> results', (await visible()) === 'results');
 const R = await ev(`window.__resp`);
-check('response object was console.logged with 84 flat fields', !!R && Object.keys(R).length === 84, R ? Object.keys(R).length : '');
+check('response object was console.logged with 89 flat fields', !!R && Object.keys(R).length === 89, R ? Object.keys(R).length : '');
 check('route (a) run: background fields filled/empty as expected', !!R && R.course === 'BSc Computer Science' && R.uni_type === 'public' && R.year_of_study === 'year_3' && R.admission_route === 'kuccps_placed' && R.kuccps_first_choice === 'no' && R.kuccps_placed_course === '' && R.kuccps_placed_dont_remember === '' && R.switched_course === 'no' && R.original_course === '' && R.satisfaction === 4 && R.choose_again === 'yes' && R.gender === 'female' && R.age_band === '21_23', JSON.stringify(R));
 check('background fields sit after holland_code and before the timings', (() => { const k = Object.keys(R); return k.indexOf('holland_code') === 60 && k[61] === 'course' && k[73] === 'age_band' && k[74] === 'time_screen_1' && k[81] === 'time_screen_8'; })());
 console.log('        ', JSON.stringify(R));
-check('response (R1=4, rest 3): score_R 25, others 24, code RIA, attention passed', R.score_R === 25 && R.score_C === 24 && R.holland_code === 'RIA' && R.attention_check === 1 && R.attention_passed === true && R.schema_version === '2');
+check('response (R1=4, rest 3): score_R 25, others 24, code RIA, attention passed', R.score_R === 25 && R.score_C === 24 && R.holland_code === 'RIA' && R.attention_check === 1 && R.attention_passed === true && R.schema_version === '3');
 check('timings recorded for all 8 screens', R.time_screen_1 > 0 && R.time_total_ms >= R.time_screen_1 && R.time_screen_6 > 0 && R.time_screen_7 > 0 && R.time_screen_8 > 0);
 check('sessionStorage state cleared on results', (await ev(`sessionStorage.getItem('${STATE_KEY}')`)) === null);
 const code = await ev(`document.getElementById('results-code').textContent`);
@@ -366,7 +367,7 @@ await click('#debug-fill');
 check('debug=1 jumps to results', (await visible()) === 'results');
 const D1 = await ev(`window.__resp`);
 check('debug=1 attention_check is 1 and passed; 48 answers in 1..5', D1.attention_check === 1 && D1.attention_passed === true && Object.keys(D1).filter(k=>/^[RIASEC][1-8]$/.test(k)).every(k=>D1[k]>=1&&D1[k]<=5));
-check('debug=1 also fills the background fields: 84 fields, valid and consistent', Object.keys(D1).length === 84 && consistent(D1), JSON.stringify(D1));
+check('debug=1 also fills the background fields: 89 fields, valid and consistent', Object.keys(D1).length === 89 && consistent(D1), JSON.stringify(D1));
 // Several debug runs: every one must be consistent, and different routes must turn up
 const seenRoutes = new Set(); let allConsistent = true;
 for (let i = 0; i < 10; i++) {
@@ -374,7 +375,7 @@ for (let i = 0; i < 10; i++) {
   await click('#debug-fill');
   const Dn = await ev(`window.__resp`);
   seenRoutes.add(Dn.admission_route);
-  if (!consistent(Dn) || Object.keys(Dn).length !== 84) { allConsistent = false; console.log('        inconsistent:', JSON.stringify(Dn)); }
+  if (!consistent(Dn) || Object.keys(Dn).length !== 89) { allConsistent = false; console.log('        inconsistent:', JSON.stringify(Dn)); }
 }
 check('10 more debug runs (1 and fail): all consistent; at least 2 different admission routes seen', allConsistent && seenRoutes.size >= 2, [...seenRoutes].join(','));
 

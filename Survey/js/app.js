@@ -19,6 +19,8 @@
   var Items = window.ChaguoItems;
   var Scoring = window.ChaguoScoring;
   var Background = window.ChaguoBackground;
+  var Snapshot = window.ChaguoSnapshot;
+  var Sender = window.ChaguoSender;
 
   var FIRST_BG_SCREEN = Background.SCREENS[0]; // 7
   var TOTAL_SCREENS = Scoring.TIMED_SCREENS;   // 8
@@ -48,6 +50,8 @@
     bgScreen: FIRST_BG_SCREEN, // 7 | 8, used when screen === 'background'
     bg: {},                 // background answers, keyed by response field name (see background.js)
     screenTimes: [0, 0, 0, 0, 0, 0, 0, 0], // ms per screen (1-8), accumulated across back/forth
+    lastStage: null,        // last snapshot stage sent ('screen_1'..'screen_8'); null until a screen is completed
+    dirty: false,           // answers changed since the last snapshot (not persisted)
     enteredAt: null,        // when the current timed screen was shown (not persisted)
     response: null          // the finished response object (not persisted)
   };
@@ -127,7 +131,8 @@
       attentionCheck: state.attentionCheck,
       bgScreen: state.bgScreen,
       bg: state.bg,
-      screenTimes: state.screenTimes
+      screenTimes: state.screenTimes,
+      lastStage: state.lastStage
     }));
   }
 
@@ -154,6 +159,7 @@
       // pruneHidden drops hidden and invalid values, so nothing stale comes back from storage
       state.bg = Background.pruneHidden(s.bg && typeof s.bg === 'object' ? s.bg : {});
       state.screenTimes = times ? s.screenTimes : [0, 0, 0, 0, 0, 0, 0, 0];
+      state.lastStage = typeof s.lastStage === 'string' && /^screen_[1-8]$/.test(s.lastStage) ? s.lastStage : null;
       state.enteredAt = currentScreenNumber() !== null ? Date.now() : null;
     } catch (e) { /* corrupt data: start fresh */ }
   }
@@ -289,6 +295,7 @@
     var input = e.target;
     if (!input || input.type !== 'radio') return;
     setAnswer(input.name, parseInt(input.value, 10));
+    state.dirty = true;
     var fs = input.closest('.item');
     if (fs) fs.classList.remove('is-missing');
     if (!$('items-summary').hidden) refreshSummary(document.querySelectorAll('.item.is-missing').length);
@@ -299,6 +306,7 @@
   function onNext() {
     var missing = missingOnScreen();
     if (missing.length) { showMissing(missing); return; }
+    saveProgress('screen_' + state.itemScreen);
     if (state.itemScreen < Items.SCREEN_COUNT) goTo('items', state.itemScreen + 1);
     else goTo('background', FIRST_BG_SCREEN);
   }
@@ -445,6 +453,7 @@
       value = q.options.filter(function (o) { return String(o.value) === input.value; })[0].value;
     }
     state.bg = Background.setAnswer(state.bg, input.name, value);
+    state.dirty = true;
     flagged = flagged.filter(function (f) { return f !== q.id && Background.visibleQuestions(state.bg).some(function (v) { return v.id === f; }); });
     renderQuestions();
     var again = input.type === 'checkbox'
@@ -459,6 +468,7 @@
     var input = e.target;
     if (!input || input.type !== 'text') return;
     state.bg = Background.setAnswer(state.bg, input.name, input.value);
+    state.dirty = true;
     if (Background.validateScreen(state.bgScreen, state.bg).missing.indexOf(input.name) === -1) unflag(input.name);
     updateProgress();
     persist();
@@ -477,10 +487,15 @@
   function onBackgroundNext() {
     var v = Background.validateScreen(state.bgScreen, state.bg);
     if (!v.valid) { showBackgroundMissing(v.missing); return; }
-    if (state.bgScreen < TOTAL_SCREENS) { goTo('background', state.bgScreen + 1); return; }
+    if (state.bgScreen < TOTAL_SCREENS) {
+      saveProgress('screen_' + state.bgScreen);
+      goTo('background', state.bgScreen + 1);
+      return;
+    }
     // Last screen: double-check the earlier one too (a restored session could be incomplete).
     var earlier = Background.validateScreen(FIRST_BG_SCREEN, state.bg);
     if (!earlier.valid) { goTo('background', FIRST_BG_SCREEN); showBackgroundMissing(earlier.missing); return; }
+    saveProgress('screen_' + TOTAL_SCREENS);
     finishSurvey();
   }
 
@@ -491,25 +506,78 @@
 
   // ---- Finishing and results --------------------------------------------------------------
 
+  // ---- Saving (snapshots; see sender.js and snapshot.js) ------------------------------------
+
+  var IS_TEST = Snapshot.isTestEnvironment(window.location, DEBUG_ON);
+
+  // The full response so far. `stage` is the last completed screen, or 'complete'.
+  function makeSnapshot(stage) {
+    flushTime();
+    return Snapshot.buildSnapshot({
+      stage: stage,
+      responseId: state.responseId,
+      startedAtMs: state.startedAtMs,
+      nowMs: Date.now(),
+      answers: state.answers,
+      attentionCheck: state.attentionCheck,
+      bg: state.bg,
+      screenTimes: state.screenTimes,
+      isMobile: isMobile(),
+      isTest: IS_TEST,
+      consentVersion: typeof CONSENT_VERSION === 'string' ? CONSENT_VERSION : ''
+    });
+  }
+
+  // Called when a screen has been completed (all required answers in). Never waits for the network.
+  function saveProgress(stage) {
+    var snapshot = makeSnapshot(stage);
+    state.lastStage = stage;
+    state.dirty = false;
+    persist();
+    Sender.send(snapshot);
+  }
+
+  // When the page is hidden or closed mid-survey: send answers given since the last snapshot with
+  // sendBeacon (built for page close), or beacon an earlier snapshot that never got through.
+  function saveOnLeaving() {
+    var inProgress = state.screen === 'items' || state.screen === 'background';
+    if (!inProgress || state.startedAtMs === null || state.lastStage === null) return;
+    if (state.dirty) {
+      state.dirty = false;
+      Sender.beacon(makeSnapshot(state.lastStage));
+    } else {
+      Sender.beaconQueued();
+    }
+  }
+
+  // ---- Finishing and results --------------------------------------------------------------
+
   function finishSurvey() {
     flushTime();
     state.enteredAt = null;
-    var finishedMs = Date.now();
-    state.response = Scoring.buildResponse({
-      responseId: state.responseId,
-      startedAt: new Date(state.startedAtMs).toISOString(),
-      finishedAt: new Date(finishedMs).toISOString(),
-      answers: state.answers,
-      attentionCheck: state.attentionCheck,
-      background: Background.buildBackgroundFields(state.bg),
-      screenTimes: state.screenTimes,
-      totalMs: finishedMs - state.startedAtMs,
-      isMobile: isMobile()
-    });
+    state.response = makeSnapshot('complete');
     console.log('Chaguo survey response object:', state.response);
     safeRemove(STORAGE_KEY); // cleared on reaching results
     state.screen = 'results';
     show();
+    // The snapshot is queued before this returns, so the reference code always matches a response
+    // that is stored or waiting to be. A failed attempt is reported on the results screen.
+    trySavingFinal(false);
+  }
+
+  function trySavingFinal(isRetry) {
+    var failed = $('results-save-failed');
+    var button = $('results-retry');
+    if (isRetry) {
+      state.response.client_sent_at = new Date().toISOString();
+      button.disabled = true;
+    }
+    // A retry of a snapshot that is still queued keeps its count of server refusals (sender.js gives up after 3).
+    var attempt = isRetry && Sender.hasPending() ? Sender.retry() : Sender.send(state.response);
+    attempt.then(function (saved) {
+      failed.hidden = saved;
+      button.disabled = false;
+    });
   }
 
   function renderResults() {
@@ -562,6 +630,10 @@
       bars.appendChild(row);
     });
 
+    var ref = String(r.response_id).slice(0, 8);
+    $('results-ref-code').textContent = ref;
+    $('results-save-failed').hidden = true;
+
     var text = 'My interest code is ' + h.code + ' — find yours: ' + SURVEY_URL;
     $('results-share').href = 'https://wa.me/?text=' + encodeURIComponent(text);
   }
@@ -596,6 +668,7 @@
     });
     $('start-underage').addEventListener('click', function () {
       safeRemove(STORAGE_KEY);
+      Sender.clear(); // nothing is ever sent for under-18s
       safeSet(UNDERAGE_KEY, '1'); // a flag only; stops re-entry during this browser session
       goTo('exit');
     });
@@ -606,6 +679,7 @@
     $('background-list').addEventListener('input', onBackgroundInput);
     $('background-back').addEventListener('click', onBackgroundBack);
     $('background-next').addEventListener('click', onBackgroundNext);
+    $('results-retry').addEventListener('click', function () { trySavingFinal(true); });
 
     if (DEBUG_ON) {
       $('debug-bar').hidden = false;
@@ -613,10 +687,12 @@
     }
 
     // Keep the stored time up to date if the page is closed or hidden mid-screen.
-    window.addEventListener('pagehide', persist);
+    window.addEventListener('pagehide', function () { persist(); saveOnLeaving(); });
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'hidden') persist();
+      if (document.visibilityState === 'hidden') { persist(); saveOnLeaving(); }
     });
+    // Back online: try again with anything that is still waiting.
+    window.addEventListener('online', function () { Sender.retry(); });
 
     show();
   }

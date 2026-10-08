@@ -112,7 +112,7 @@ test('scoreResponses rejects a missing or out-of-range answer', () => {
   assert.throws(() => Scoring.scoreResponses(b));
 });
 
-test('buildResponse is flat with the 84 agreed fields (schema "2"), in a stable order', () => {
+test('buildResponse is flat with the 84 core fields (schema "3"), in a stable order', () => {
   const r = Scoring.buildResponse({
     responseId: 'id', startedAt: '2026-01-01T00:00:00.000Z', finishedAt: '2026-01-01T00:10:00.000Z',
     answers: all(3), attentionCheck: 1, background: BG_FIELDS,
@@ -132,7 +132,7 @@ test('buildResponse is flat with the 84 agreed fields (schema "2"), in a stable 
     'time_screen_7', 'time_screen_8', 'time_total_ms', 'user_agent_is_mobile'
   ]);
   keys.forEach((k) => assert.notStrictEqual(typeof r[k], 'object'));
-  assert.strictEqual(r.schema_version, '2');
+  assert.strictEqual(r.schema_version, '3');
   assert.strictEqual(r.score_R, 24);
   assert.strictEqual(r.course, 'BSc Computer Science');
   assert.strictEqual(r.kuccps_first_choice, '');

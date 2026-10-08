@@ -8,7 +8,7 @@
   var Items = (typeof module !== 'undefined' && module.exports) ? require('./items.js') : root.ChaguoItems;
 
   var TYPES = Items.TYPES; // R-I-A-S-E-C: also the documented tie-break order
-  var SCHEMA_VERSION = '2';
+  var SCHEMA_VERSION = '3';
   var TIMED_SCREENS = Items.SCREEN_COUNT + 2; // 6 item screens + 2 background screens
 
   function isValidAnswer(v) {
@@ -50,7 +50,8 @@
     return { code: ranking.slice(0, 3).join(''), ranking: ranking, tieAffected: tieAffected };
   }
 
-  // The flat, spreadsheet-friendly object phase 3 will send to Google Sheets.
+  // The flat, spreadsheet-friendly response of a FINISHED survey (the 84 core fields; snapshot.js adds
+  // the 5 sending fields and also builds the partial snapshots sent while the survey is in progress).
   // opts: responseId, startedAt (ISO), finishedAt (ISO), answers {R1..C8}, attentionCheck,
   //       background (the 13 fields from ChaguoBackground.buildBackgroundFields; "" = question not shown),
   //       screenTimes [8 x ms: 6 item screens + 2 background screens], totalMs, isMobile
