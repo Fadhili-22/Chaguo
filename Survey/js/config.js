@@ -23,4 +23,4 @@ var SURVEY_ENDPOINT = "https://script.google.com/macros/s/AKfycbxm27yuiGDxA4JmZf
 var SEND_MODE = "cors";
 var SURVEY_URL = "https://fadhili-22.github.io/Chaguo/";
 var SURVEY_OPEN = true;
-var CONSENT_VERSION = "2026-10-v2";
+var CONSENT_VERSION = "2026-10-v3";

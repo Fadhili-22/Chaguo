@@ -160,15 +160,15 @@ check('intro mentions Chaguo, KCSE leavers and the 3-letter code', await ev(`(()
 const EXPECTED_LIST = [
   'Anonymous (no name, email or phone number needed)',
   'Voluntary (you can stop at any time)',
-  'Time-friendly (about 7 to 10 minutes)',
+  'Time-friendly (5 minutes or less)',
   "Answers (your interests, course details and satisfaction) are saved as you go, so if you stop partway, what you've answered is kept. They are used for research and to train Chaguo's model",
-  'Contact (njenga.munyua@strathmore.edu): email us with the reference code shown at the end of the survey to have your answers deleted'
+  'Contact (njenga.munyua@strathmore.edu)'
 ];
 const listText = await ev(`[...document.querySelectorAll('#screen-start .before-list li')].map(li=>li.textContent)`);
-check('"Before you start" list reads exactly as agreed (five points; saved as you go + deletion by reference code)', JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST), JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST) ? '' : JSON.stringify(listText));
+check('"Before you start" list reads exactly as agreed (five points; saved as you go + contact email)', JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST), JSON.stringify(listText) === JSON.stringify(EXPECTED_LIST) ? '' : JSON.stringify(listText));
 check('list is numbered I) II) III) IV) V) in mono (a real <ul>; numerals come from CSS, the text is unchanged)', await ev(`(()=>{const l=document.querySelector('#screen-start .before-list'); const cs=getComputedStyle(l); const m=getComputedStyle(l.querySelector('li'),'::marker'); return l.tagName==='UL' && cs.listStyleType==='roman-paren' && /mono/i.test(m.fontFamily);})()`));
 check('"Before you start" is bold; list items are normal weight; main heading and buttons may be bold', await ev(`(()=>{const root=document.getElementById('screen-start'); if(root.querySelector('strong,b,dt')) return false; const w=(el)=>parseInt(getComputedStyle(el).fontWeight,10); if(w(root.querySelector('.before-title'))<600) return false; return [...root.querySelectorAll('*')].every(el=>{ if(el.tagName==='H1'||el.classList.contains('btn')||el.classList.contains('before-title')) return true; return w(el)<=400; });})()`));
-check('time wording: "about 7 to 10 minutes" appears once on the page; no stale "7 minutes"', await ev(`(()=>{const t=document.body.textContent; return t.split('7 to 10 minutes').length===2 && t.split('7 minutes').length===1;})()`));
+check('time wording: "5 minutes or less" appears once on the page; no stale "7 to 10 minutes"', await ev(`(()=>{const t=document.body.textContent; return t.split('5 minutes or less').length===2 && t.split('7 to 10 minutes').length===1 && t.split('7 minutes').length===1;})()`));
 check('contact email is a mailto link', await ev(`document.querySelector('#screen-start .before-list a[href="mailto:njenga.munyua@strathmore.edu"]') !== null`));
 check('header shows the logo with alt "Chaguo", loaded, sensibly sized', await ev(`(()=>{const i=document.querySelector('.site-header img'); const h=i.getBoundingClientRect().height; return i.alt==='Chaguo' && i.complete && i.naturalWidth>0 && h>=24 && h<=60 && i.getAttribute('src')==='assets/chaguo-logo-transparent.png';})()`));
 check('header still says INTEREST SURVEY', await ev(`document.querySelector('.site-header-note').textContent.trim().toLowerCase()==='interest survey'`));

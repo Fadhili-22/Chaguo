@@ -19,7 +19,7 @@ GitHub Pages only works from a **public** repo on a free plan (a private repo ne
 | `SEND_MODE` | `"cors"` (it worked when you tested) |
 | `SURVEY_URL` | `https://fadhili-22.github.io/Chaguo/` |
 | `SURVEY_OPEN` | `true` |
-| `CONSENT_VERSION` | `2026-10-v2`, or a new label if you changed the opening-screen wording |
+| `CONSENT_VERSION` | `2026-10-v3`, or a new label if you changed the opening-screen wording |
 
 ### 3. Push to GitHub
 In PowerShell:
